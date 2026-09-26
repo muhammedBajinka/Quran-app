@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'screens/audio/audio_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/quran/quran_screen.dart';
@@ -66,11 +67,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
       message: 'Progress and memorisation will be built here.',
       icon: Icons.insights_outlined,
     ),
-    _PlaceholderPage(
-      title: 'Audio',
-      message: 'Dua and Sermon audio will be built here.',
-      icon: Icons.headphones_outlined,
-    ),
+    AudioScreen(),
     _PlaceholderPage(
       title: 'Settings',
       message: 'Account, Quran and audio settings will be built here.',
