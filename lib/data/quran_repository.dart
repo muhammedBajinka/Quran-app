@@ -32,6 +32,7 @@ class QuranRepository {
         number: surah['number'] as int,
         nameArabic: surah['nameArabic'] as String,
         nameEnglish: surah['nameEnglish'] as String,
+        nameTransliteration: surah['nameTransliteration'] as String,
         ayahCount: surah['ayahCount'] as int,
         ayahs: ayahs,
       );

@@ -16,6 +16,7 @@ class QuranSurah {
   final int number;
   final String nameArabic;
   final String nameEnglish;
+  final String nameTransliteration;
   final int ayahCount;
   final List<QuranAyah> ayahs;
 
@@ -23,6 +24,7 @@ class QuranSurah {
     required this.number,
     required this.nameArabic,
     required this.nameEnglish,
+    required this.nameTransliteration,
     required this.ayahCount,
     required this.ayahs,
   });
