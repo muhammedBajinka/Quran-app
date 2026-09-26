@@ -34,38 +34,91 @@ class QuranApp extends StatelessWidget {
   }
 }
 
-class QuranHomePage extends StatelessWidget {
+class QuranHomePage extends StatefulWidget {
   const QuranHomePage({super.key});
+
+  @override
+  State<QuranHomePage> createState() => _QuranHomePageState();
+}
+
+class _QuranHomePageState extends State<QuranHomePage> {
+  int _selectedIndex = 0;
+
+  static const List<String> _titles = [
+    'Quran',
+    'Progress',
+    'Connection',
+    'Audio',
+    'Settings',
+  ];
+
+  static const List<Widget> _pages = [
+    _PlaceholderPage(
+      title: 'Quran',
+      message: 'Quran foundation will be built here.',
+      icon: Icons.menu_book_outlined,
+    ),
+    _PlaceholderPage(
+      title: 'Progress',
+      message: 'Progress and memorisation will be built here.',
+      icon: Icons.insights_outlined,
+    ),
+    _PlaceholderPage(
+      title: 'Connection',
+      message: 'Connections and chat will be built here.',
+      icon: Icons.people_outline,
+    ),
+    _PlaceholderPage(
+      title: 'Audio',
+      message: 'Dua and Sermon audio will be built here.',
+      icon: Icons.headphones_outlined,
+    ),
+    _PlaceholderPage(
+      title: 'Settings',
+      message: 'Account, Quran and audio settings will be built here.',
+      icon: Icons.settings_outlined,
+    ),
+  ];
+
+  void _selectTab(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quran'),
+        title: Text(_titles[_selectedIndex]),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
-      body: const Center(
-        child: Text(
-          'Quran Home',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
+      body: _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectTab,
+        backgroundColor: Colors.white,
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: Icon(Icons.menu_book_outlined),
+            selectedIcon: Icon(Icons.menu_book),
+            label: 'Quran',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bookmark_border),
-            selectedIcon: Icon(Icons.bookmark),
-            label: 'Saved',
+            icon: Icon(Icons.insights_outlined),
+            selectedIcon: Icon(Icons.insights),
+            label: 'Progress',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Connection',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.headphones_outlined),
+            selectedIcon: Icon(Icons.headphones),
+            label: 'Audio',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
@@ -73,6 +126,50 @@ class QuranHomePage extends StatelessWidget {
             label: 'Settings',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PlaceholderPage extends StatelessWidget {
+  final String title;
+  final String message;
+  final IconData icon;
+
+  const _PlaceholderPage({
+    required this.title,
+    required this.message,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 48,
+              color: Color(0xFF2E7D5B),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
