@@ -33,7 +33,7 @@ class SurahReaderScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '${surah.number} · ${surah.nameTransliteration} · ${surah.nameArabic}',
+          '${surah.nameTransliteration} · ${surah.nameArabic}',
         ),
       ),
       body: SingleChildScrollView(

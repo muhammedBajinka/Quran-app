@@ -48,8 +48,8 @@ class _QuranHomePageState extends State<QuranHomePage> {
 
   static const List<String> _titles = [
     'Quran',
+    'Memorization',
     'Progress',
-    'Connection',
     'Audio',
     'Settings',
   ];
@@ -57,14 +57,14 @@ class _QuranHomePageState extends State<QuranHomePage> {
   static const List<Widget> _pages = [
     QuranScreen(),
     _PlaceholderPage(
+      title: 'Memorization',
+      message: 'Your memorised Surahs and Quran progress will appear here.',
+      icon: Icons.bookmark_outline,
+    ),
+    _PlaceholderPage(
       title: 'Progress',
       message: 'Progress and memorisation will be built here.',
       icon: Icons.insights_outlined,
-    ),
-    _PlaceholderPage(
-      title: 'Connection',
-      message: 'Connections and chat will be built here.',
-      icon: Icons.people_outline,
     ),
     _PlaceholderPage(
       title: 'Audio',
@@ -104,14 +104,14 @@ class _QuranHomePageState extends State<QuranHomePage> {
             label: 'Quran',
           ),
           NavigationDestination(
+            icon: Icon(Icons.bookmark_outline),
+            selectedIcon: Icon(Icons.bookmark),
+            label: 'Memorization',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.insights_outlined),
             selectedIcon: Icon(Icons.insights),
             label: 'Progress',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: 'Connection',
           ),
           NavigationDestination(
             icon: Icon(Icons.headphones_outlined),
