@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
+import 'surah_reader_screen.dart';
 
 class QuranScreen extends StatefulWidget {
   const QuranScreen({super.key});
@@ -85,7 +86,11 @@ class _QuranScreenState extends State<QuranScreen> {
                 ),
               ),
               onTap: () {
-                // Reader will be connected in the next step.
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SurahReaderScreen(surah: surah),
+                  ),
+                );
               },
             );
           },
