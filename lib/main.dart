@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'screens/quran/quran_screen.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -53,11 +55,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
   ];
 
   static const List<Widget> _pages = [
-    _PlaceholderPage(
-      title: 'Quran',
-      message: 'Quran foundation will be built here.',
-      icon: Icons.menu_book_outlined,
-    ),
+    QuranScreen(),
     _PlaceholderPage(
       title: 'Progress',
       message: 'Progress and memorisation will be built here.',
