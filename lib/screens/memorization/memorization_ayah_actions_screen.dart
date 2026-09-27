@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import '../../state/progress_state.dart';
 import 'memorization_practice_screen.dart';
 import 'memorization_record_screen.dart';
 import 'memorization_revision_screen.dart';
@@ -10,12 +11,14 @@ class MemorizationAyahActionsScreen extends StatefulWidget {
   final QuranSurah surah;
   final List<int> selectedAyahs;
   final MemorizationState memorizationState;
+  final ProgressState progressState;
 
   const MemorizationAyahActionsScreen({
     super.key,
     required this.surah,
     required this.selectedAyahs,
     required this.memorizationState,
+    required this.progressState,
   });
 
   @override
@@ -102,6 +105,7 @@ class _MemorizationAyahActionsScreenState
           surah: widget.surah,
           selectedAyahs: widget.selectedAyahs,
           memorizationState: widget.memorizationState,
+          progressState: widget.progressState,
         ),
       ),
     );
@@ -120,6 +124,7 @@ class _MemorizationAyahActionsScreenState
           surah: widget.surah,
           selectedAyahs: widget.selectedAyahs,
           memorizationState: widget.memorizationState,
+          progressState: widget.progressState,
         ),
       ),
     );
@@ -138,6 +143,7 @@ class _MemorizationAyahActionsScreenState
           surah: widget.surah,
           selectedAyahs: widget.selectedAyahs,
           memorizationState: widget.memorizationState,
+          progressState: widget.progressState,
         ),
       ),
     );

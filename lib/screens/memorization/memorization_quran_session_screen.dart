@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import '../../state/progress_state.dart';
 
 class MemorizationQuranSessionScreen extends StatefulWidget {
   final QuranSurah surah;
   final List<int> selectedAyahs;
   final MemorizationState memorizationState;
+  final ProgressState progressState;
   final MemorizationSessionType type;
 
   const MemorizationQuranSessionScreen({
@@ -14,6 +16,7 @@ class MemorizationQuranSessionScreen extends StatefulWidget {
     required this.surah,
     required this.selectedAyahs,
     required this.memorizationState,
+    required this.progressState,
     required this.type,
   });
 
@@ -27,6 +30,7 @@ class _MemorizationQuranSessionScreenState
   late final List<int> _selectedAyahs;
 
   final Set<int> _mistakeAyahs = {};
+  bool _isFinishing = false;
 
   @override
   void initState() {
@@ -142,6 +146,14 @@ class _MemorizationQuranSessionScreenState
   }
 
   Future<void> _finish() async {
+    if (_isFinishing) {
+      return;
+    }
+
+    setState(() {
+      _isFinishing = true;
+    });
+
     final now = DateTime.now();
 
     final session = MemorizationSession(
@@ -157,9 +169,63 @@ class _MemorizationQuranSessionScreenState
       createdAt: now,
     );
 
-    widget.memorizationState.addMemorizationSession(
-      session,
-    );
+    if (widget.type == MemorizationSessionType.memorization) {
+      final strength = widget.memorizationState
+          .portionForSelection(
+            widget.surah.number,
+            widget.selectedAyahs,
+          )
+          ?.strength;
+
+      if (strength == null) {
+        if (!mounted) return;
+
+        setState(() {
+          _isFinishing = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Choose a strength before starting memorization.',
+            ),
+          ),
+        );
+
+        return;
+      }
+
+      final alreadyMemorized = widget.memorizationState
+          .memorizedAyahsForSurah(widget.surah.number);
+
+      final newAyahCount = _selectedAyahs
+          .where(
+            (ayahNumber) =>
+                !alreadyMemorized.contains(ayahNumber),
+          )
+          .length;
+
+      widget.memorizationState.completeMemorization(
+        session: session,
+        strength: strength,
+      );
+
+      await widget.progressState.recordMemorizationCompletion(
+        newAyahCount,
+      );
+    } else {
+      widget.memorizationState.addRevisionSession(
+        RevisionSession(
+          id: session.id,
+          surahNumber: session.surahNumber,
+          ayahNumbers: session.ayahNumbers,
+          mistakeAyahs: session.mistakeAyahs,
+          createdAt: session.createdAt,
+        ),
+      );
+
+      await widget.progressState.recordRevisionSession();
+    }
 
     if (!mounted) {
       return;

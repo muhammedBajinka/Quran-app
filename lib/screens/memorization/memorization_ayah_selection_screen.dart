@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import '../../state/progress_state.dart';
 import 'memorization_ayah_actions_screen.dart';
 
 class MemorizationAyahSelectionScreen extends StatefulWidget {
   final QuranSurah surah;
   final MemorizationState memorizationState;
+  final ProgressState progressState;
 
   const MemorizationAyahSelectionScreen({
     super.key,
     required this.surah,
     required this.memorizationState,
+    required this.progressState,
   });
 
   @override
@@ -22,17 +25,6 @@ class MemorizationAyahSelectionScreen extends StatefulWidget {
 class _MemorizationAyahSelectionScreenState
     extends State<MemorizationAyahSelectionScreen> {
   final Set<int> _selectedAyahs = {};
-
-  @override
-  void initState() {
-    super.initState();
-
-    _selectedAyahs.addAll(
-      widget.memorizationState.memorizedAyahsForSurah(
-        widget.surah.number,
-      ),
-    );
-  }
 
   void _selectAll() {
     setState(() {
@@ -61,7 +53,7 @@ class _MemorizationAyahSelectionScreenState
     });
   }
 
-  void _saveSelection() {
+  void _continue() {
     if (_selectedAyahs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -73,18 +65,14 @@ class _MemorizationAyahSelectionScreenState
 
     final selected = _selectedAyahs.toList()..sort();
 
-    widget.memorizationState.setAyahsMemorized(
-      widget.surah.number,
-      selected,
-    );
-
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute<void>(
         builder: (context) => MemorizationAyahActionsScreen(
           surah: widget.surah,
           selectedAyahs: selected,
           memorizationState: widget.memorizationState,
+          progressState: widget.progressState,
         ),
       ),
     );
@@ -227,8 +215,8 @@ class _MemorizationAyahSelectionScreenState
                       ),
                     ),
                     FilledButton(
-                      onPressed: _saveSelection,
-                      child: const Text('Save'),
+                      onPressed: _continue,
+                      child: const Text('Continue'),
                     ),
                   ],
                 ),

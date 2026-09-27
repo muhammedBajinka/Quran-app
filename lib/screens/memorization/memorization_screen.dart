@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import '../../state/progress_state.dart';
 import 'memorization_ayah_selection_screen.dart';
 
 class MemorizationScreen extends StatefulWidget {
   final MemorizationState memorizationState;
+  final ProgressState progressState;
 
   const MemorizationScreen({
     super.key,
     required this.memorizationState,
+    required this.progressState,
   });
 
   @override
@@ -35,6 +38,7 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
         builder: (context) => MemorizationAyahSelectionScreen(
           surah: surah,
           memorizationState: widget.memorizationState,
+          progressState: widget.progressState,
         ),
       ),
     );

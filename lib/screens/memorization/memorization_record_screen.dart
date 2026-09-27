@@ -7,17 +7,20 @@ import 'package:record/record.dart';
 
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import '../../state/progress_state.dart';
 
 class MemorizationRecordScreen extends StatefulWidget {
   final QuranSurah surah;
   final List<int> selectedAyahs;
   final MemorizationState memorizationState;
+  final ProgressState progressState;
 
   const MemorizationRecordScreen({
     super.key,
     required this.surah,
     required this.selectedAyahs,
     required this.memorizationState,
+    required this.progressState,
   });
 
   @override
@@ -201,6 +204,8 @@ class _MemorizationRecordScreenState
       widget.memorizationState.addRecording(
         recording,
       );
+
+      await widget.progressState.recordRecording();
 
       if (!mounted) return;
 
