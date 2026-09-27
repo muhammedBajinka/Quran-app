@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/audio/audio_screen.dart';
 import 'screens/memorization/memorization_screen.dart';
 import 'screens/quran/quran_screen.dart';
+import 'state/audio/quran_audio_controller.dart';
 import 'state/memorization_state.dart';
 import 'state/progress_state.dart';
 
@@ -69,6 +70,7 @@ class QuranHomePage extends StatefulWidget {
 
 class _QuranHomePageState extends State<QuranHomePage> {
   final MemorizationState _memorizationState = MemorizationState();
+  final QuranAudioController _audioController = QuranAudioController();
 
   int _selectedIndex = 0;
 
@@ -83,6 +85,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
   @override
   void dispose() {
     _memorizationState.dispose();
+    _audioController.dispose();
     widget.progressState.dispose();
     super.dispose();
   }
@@ -104,6 +107,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
         final pages = <Widget>[
           QuranScreen(
             memorizationState: _memorizationState,
+            audioController: _audioController,
           ),
           MemorizationScreen(
             memorizationState: _memorizationState,

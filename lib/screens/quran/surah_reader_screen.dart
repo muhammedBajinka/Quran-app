@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../models/quran_models.dart';
+import '../../state/audio/quran_audio_controller.dart';
 
 class SurahReaderScreen extends StatelessWidget {
   final QuranSurah surah;
+  final QuranAudioController audioController;
 
-  const SurahReaderScreen({super.key, required this.surah});
+  const SurahReaderScreen({
+    super.key,
+    required this.surah,
+    required this.audioController,
+  });
 
   static const String _bismillah = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
 
@@ -58,6 +64,31 @@ class SurahReaderScreen extends StatelessWidget {
                 softWrap: true,
                 style: GoogleFonts.amiriQuran(fontSize: 25, height: 2.05),
               ),
+              const SizedBox(height: 28),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.headphones_outlined),
+                  title: const Text(
+                    'Audio',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    audioController.audioUrl == null
+                        ? 'Audio is not available for this Surah yet.'
+                        : 'Ready to play',
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Play audio',
+                    icon: const Icon(Icons.play_arrow),
+                    onPressed: audioController.audioUrl == null
+                        ? null
+                        : audioController.play,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

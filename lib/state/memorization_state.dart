@@ -174,12 +174,27 @@ class RevisionSession {
 
 class MemorizationState extends ChangeNotifier {
   static const String _storageKey = 'quran_memorization_state_v2';
+  static const String _learningSecondsKey = 'learningSeconds';
 
   final Map<int, Set<int>> _memorizedAyahs = {};
   final List<MemorizationPortion> _memorizationPortions = [];
   final List<MemorizationRecording> _recordings = [];
   final List<RevisionSession> _revisionSessions = [];
   final List<MemorizationSession> _memorizationSessions = [];
+
+  int _learningSeconds = 0;
+  DateTime? _learningStartedAt;
+
+  int get learningSeconds {
+    if (_learningStartedAt == null) {
+      return _learningSeconds;
+    }
+
+    return _learningSeconds +
+        DateTime.now().difference(_learningStartedAt!).inSeconds;
+  }
+
+  bool get isLearningTimerRunning => _learningStartedAt != null;
 
   MemorizationState() {
     _load();
@@ -195,6 +210,8 @@ class MemorizationState extends ChangeNotifier {
       }
 
       final data = jsonDecode(raw) as Map<String, dynamic>;
+
+      _learningSeconds = data[_learningSecondsKey] as int? ?? 0;
 
       final memorized = data['memorizedAyahs'] as Map<String, dynamic>?;
 
@@ -258,6 +275,7 @@ class MemorizationState extends ChangeNotifier {
       }
 
       final data = {
+        _learningSecondsKey: _learningSeconds,
         'memorizedAyahs': memorizedAyahs,
         'portions':
             _memorizationPortions.map((portion) => portion.toJson()).toList(),
@@ -273,6 +291,47 @@ class MemorizationState extends ChangeNotifier {
     } catch (error) {
       debugPrint('Could not save memorization data: $error');
     }
+  }
+
+  void startLearningTimer() {
+    if (_learningStartedAt != null) {
+      return;
+    }
+
+    _learningStartedAt = DateTime.now();
+    notifyListeners();
+  }
+
+  Future<void> stopLearningTimer() async {
+    final startedAt = _learningStartedAt;
+
+    if (startedAt == null) {
+      return;
+    }
+
+    _learningSeconds +=
+        DateTime.now().difference(startedAt).inSeconds;
+
+    _learningStartedAt = null;
+
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> saveActiveLearningTime() async {
+    final startedAt = _learningStartedAt;
+
+    if (startedAt == null) {
+      return;
+    }
+
+    _learningSeconds +=
+        DateTime.now().difference(startedAt).inSeconds;
+
+    _learningStartedAt = DateTime.now();
+
+    await _persist();
+    notifyListeners();
   }
 
   Set<int> memorizedAyahsForSurah(int surahNumber) {

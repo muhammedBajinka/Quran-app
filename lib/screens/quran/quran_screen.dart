@@ -3,14 +3,17 @@ import 'package:flutter/material.dart';
 import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import '../../state/audio/quran_audio_controller.dart';
 import 'surah_reader_screen.dart';
 
 class QuranScreen extends StatefulWidget {
   final MemorizationState memorizationState;
+  final QuranAudioController audioController;
 
   const QuranScreen({
     super.key,
     required this.memorizationState,
+    required this.audioController,
   });
 
   @override
@@ -179,7 +182,10 @@ class _QuranScreenState extends State<QuranScreen> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) =>
-                                    SurahReaderScreen(surah: surah),
+                                    SurahReaderScreen(
+                                      surah: surah,
+                                      audioController: widget.audioController,
+                                    ),
                               ),
                             );
                           },
