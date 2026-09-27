@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
+import '../../state/memorization_state.dart';
 import 'surah_reader_screen.dart';
 
 class QuranScreen extends StatefulWidget {
-  const QuranScreen({super.key});
+  final MemorizationState memorizationState;
+
+  const QuranScreen({
+    super.key,
+    required this.memorizationState,
+  });
 
   @override
   State<QuranScreen> createState() => _QuranScreenState();
@@ -51,7 +57,9 @@ class _QuranScreenState extends State<QuranScreen> {
       future: _surahsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
         }
 
         if (snapshot.hasError) {
@@ -69,7 +77,9 @@ class _QuranScreenState extends State<QuranScreen> {
         final surahs = snapshot.data;
 
         if (surahs == null || surahs.isEmpty) {
-          return const Center(child: Text('No Quran data found.'));
+          return const Center(
+            child: Text('No Quran data found.'),
+          );
         }
 
         final filteredSurahs = _filterSurahs(surahs);
@@ -111,13 +121,20 @@ class _QuranScreenState extends State<QuranScreen> {
             ),
             Expanded(
               child: filteredSurahs.isEmpty
-                  ? const Center(child: Text('No Surahs found.'))
+                  ? const Center(
+                      child: Text('No Surahs found.'),
+                    )
                   : ListView.separated(
                       padding: const EdgeInsets.only(bottom: 12),
                       itemCount: filteredSurahs.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final surah = filteredSurahs[index];
+                        final isMemorized =
+                            widget.memorizationState.isMemorized(
+                          surah.number,
+                        );
 
                         return ListTile(
                           contentPadding: const EdgeInsets.symmetric(
@@ -125,20 +142,44 @@ class _QuranScreenState extends State<QuranScreen> {
                             vertical: 6,
                           ),
                           leading: CircleAvatar(
-                            backgroundColor: const Color(0xFFE8F3EE),
-                            foregroundColor: const Color(0xFF2E7D5B),
+                            backgroundColor:
+                                const Color(0xFFE8F3EE),
+                            foregroundColor:
+                                const Color(0xFF2E7D5B),
                             child: Text('${surah.number}'),
                           ),
                           title: Text(
                             '${surah.number} · ${surah.nameTransliteration} · ${surah.nameArabic}',
                             textDirection: TextDirection.ltr,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          subtitle: Text('${surah.ayahCount} Ayahs'),
+                          subtitle: Text(
+                            '${surah.ayahCount} Ayahs',
+                          ),
+                          trailing: IconButton(
+                            tooltip: isMemorized
+                                ? 'Remove from memorization'
+                                : 'Mark for memorization',
+                            icon: Icon(
+                              isMemorized
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_outline,
+                              color: isMemorized
+                                  ? const Color(0xFF2E7D5B)
+                                  : null,
+                            ),
+                            onPressed: () {
+                              widget.memorizationState
+                                  .toggleMemorized(surah.number);
+                            },
+                          ),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => SurahReaderScreen(surah: surah),
+                                builder: (_) =>
+                                    SurahReaderScreen(surah: surah),
                               ),
                             );
                           },

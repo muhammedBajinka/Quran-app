@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'screens/audio/audio_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'screens/audio/audio_screen.dart';
+import 'screens/memorization/memorization_screen.dart';
 import 'screens/quran/quran_screen.dart';
+import 'state/memorization_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +47,8 @@ class QuranHomePage extends StatefulWidget {
 }
 
 class _QuranHomePageState extends State<QuranHomePage> {
+  final MemorizationState _memorizationState = MemorizationState();
+
   int _selectedIndex = 0;
 
   static const List<String> _titles = [
@@ -55,25 +59,11 @@ class _QuranHomePageState extends State<QuranHomePage> {
     'Settings',
   ];
 
-  static const List<Widget> _pages = [
-    QuranScreen(),
-    _PlaceholderPage(
-      title: 'Memorization',
-      message: 'Your memorised Surahs and Quran progress will appear here.',
-      icon: Icons.bookmark_outline,
-    ),
-    _PlaceholderPage(
-      title: 'Progress',
-      message: 'Progress and memorisation will be built here.',
-      icon: Icons.insights_outlined,
-    ),
-    AudioScreen(),
-    _PlaceholderPage(
-      title: 'Settings',
-      message: 'Account, Quran and audio settings will be built here.',
-      icon: Icons.settings_outlined,
-    ),
-  ];
+  @override
+  void dispose() {
+    _memorizationState.dispose();
+    super.dispose();
+  }
 
   void _selectTab(int index) {
     setState(() {
@@ -83,45 +73,70 @@ class _QuranHomePageState extends State<QuranHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_selectedIndex]),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-      ),
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
-        onDestinationSelected: _selectTab,
-        backgroundColor: Colors.white,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.menu_book_outlined),
-            selectedIcon: Icon(Icons.menu_book),
-            label: 'Quran',
+    return ListenableBuilder(
+      listenable: _memorizationState,
+      builder: (context, child) {
+        final pages = <Widget>[
+          QuranScreen(
+            memorizationState: _memorizationState,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bookmark_outline),
-            selectedIcon: Icon(Icons.bookmark),
-            label: 'Memorization',
+          MemorizationScreen(
+            memorizationState: _memorizationState,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights),
-            label: 'Progress',
+          const _PlaceholderPage(
+            title: 'Progress',
+            message: 'Progress and memorisation will be built here.',
+            icon: Icons.insights_outlined,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.headphones_outlined),
-            selectedIcon: Icon(Icons.headphones),
-            label: 'Audio',
+          const AudioScreen(),
+          const _PlaceholderPage(
+            title: 'Settings',
+            message: 'Account, Quran and audio settings will be built here.',
+            icon: Icons.settings_outlined,
           ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
+        ];
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(_titles[_selectedIndex]),
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
           ),
-        ],
-      ),
+          body: pages[_selectedIndex],
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _selectTab,
+            backgroundColor: Colors.white,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.menu_book_outlined),
+                selectedIcon: Icon(Icons.menu_book),
+                label: 'Quran',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.bookmark_outline),
+                selectedIcon: Icon(Icons.bookmark),
+                label: 'Memorization',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.insights_outlined),
+                selectedIcon: Icon(Icons.insights),
+                label: 'Progress',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.headphones_outlined),
+                selectedIcon: Icon(Icons.headphones),
+                label: 'Audio',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.settings_outlined),
+                selectedIcon: Icon(Icons.settings),
+                label: 'Settings',
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -148,7 +163,7 @@ class _PlaceholderPage extends StatelessWidget {
             Icon(
               icon,
               size: 48,
-              color: Color(0xFF2E7D5B),
+              color: const Color(0xFF2E7D5B),
             ),
             const SizedBox(height: 16),
             Text(
