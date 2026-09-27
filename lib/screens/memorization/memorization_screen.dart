@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import 'memorization_ayah_selection_screen.dart';
 
 class MemorizationScreen extends StatefulWidget {
   final MemorizationState memorizationState;
@@ -25,6 +26,22 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
   void initState() {
     super.initState();
     _surahsFuture = _repository.loadSurahs();
+  }
+
+  Future<void> _openAyahSelection(QuranSurah surah) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => MemorizationAyahSelectionScreen(
+          surah: surah,
+          memorizationState: widget.memorizationState,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() {});
   }
 
   @override
@@ -70,9 +87,16 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${widget.memorizationState.memorizedCount} / 114 Surahs memorized',
+                      '${widget.memorizationState.totalMemorizedAyahs} ayahs memorized',
                       style: const TextStyle(
                         fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${widget.memorizationState.memorizedCount} Surahs started',
+                      style: const TextStyle(
+                        fontSize: 14,
                       ),
                     ),
                   ],
@@ -96,8 +120,12 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
   }
 
   Widget _buildSurahCard(QuranSurah surah) {
-    final isMemorized =
-        widget.memorizationState.isMemorized(surah.number);
+    final memorizedCount =
+        widget.memorizationState.memorizedAyahCountForSurah(
+      surah.number,
+    );
+
+    final isMemorized = memorizedCount > 0;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -116,33 +144,20 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
           ),
         ),
         subtitle: Text(
-          '${surah.nameArabic} · ${surah.ayahCount} ayahs',
+          isMemorized
+              ? '$memorizedCount / ${surah.ayahCount} ayahs memorized'
+              : '${surah.nameArabic} · ${surah.ayahCount} ayahs',
         ),
         trailing: IconButton(
-          tooltip: isMemorized
-              ? 'Remove from memorization'
-              : 'Mark for memorization',
+          tooltip: 'Select ayahs',
           icon: Icon(
             isMemorized
                 ? Icons.check_circle
                 : Icons.add_circle_outline,
           ),
-          onPressed: () {
-            widget.memorizationState
-                .toggleMemorized(surah.number);
-          },
+          onPressed: () => _openAyahSelection(surah),
         ),
-        onTap: isMemorized
-            ? () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${surah.nameTransliteration} recordings will appear here.',
-                    ),
-                  ),
-                );
-              }
-            : null,
+        onTap: () => _openAyahSelection(surah),
       ),
     );
   }
