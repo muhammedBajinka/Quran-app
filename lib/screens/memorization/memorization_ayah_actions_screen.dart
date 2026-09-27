@@ -31,20 +31,20 @@ class _MemorizationAyahActionsScreenState
   void initState() {
     super.initState();
 
-    final existing = widget.memorizationState.portionForSelection(
-      widget.surah.number,
-      widget.selectedAyahs,
-    );
-
-    _strength = existing?.strength;
+    _strength = widget.memorizationState
+        .portionForSelection(
+          widget.surah.number,
+          widget.selectedAyahs,
+        )
+        ?.strength;
   }
 
   String _ayahSummary() {
-    final sorted = [...widget.selectedAyahs]..sort();
-
-    if (sorted.isEmpty) {
+    if (widget.selectedAyahs.isEmpty) {
       return 'No ayahs selected';
     }
+
+    final sorted = [...widget.selectedAyahs]..sort();
 
     if (sorted.length == 1) {
       return 'Ayah ${sorted.first}';
@@ -148,240 +148,82 @@ class _MemorizationAyahActionsScreenState
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text('Choose the strength of this portion first.'),
+          content: Text(
+            'Choose Strong, Needs review, or Bad first.',
+          ),
         ),
       );
   }
 
-  String _strengthLabel(AyahStrength strength) {
-    switch (strength) {
-      case AyahStrength.strong:
-        return 'Strong';
-      case AyahStrength.needsReview:
-        return 'Needs review';
-      case AyahStrength.bad:
-        return 'Bad';
-    }
-  }
+  Widget _buildStrengthCard({
+    required AyahStrength strength,
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    final selected = _strength == strength;
 
-  IconData _strengthIcon(AyahStrength strength) {
-    switch (strength) {
-      case AyahStrength.strong:
-        return Icons.check_circle;
-      case AyahStrength.needsReview:
-        return Icons.refresh;
-      case AyahStrength.bad:
-        return Icons.warning_amber;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final memorizedCount =
-        widget.memorizationState.memorizedAyahCountForSurah(
-      widget.surah.number,
-    );
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.surah.nameTransliteration),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(18),
-          children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(18),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _selectStrength(strength),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              CircleAvatar(
+                child: Icon(icon),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.surah.nameArabic,
+                      title,
                       style: const TextStyle(
-                        fontSize: 28,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
-                      widget.surah.nameTransliteration,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '${widget.selectedAyahs.length} ayahs selected',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _ayahSummary(),
+                      description,
                       style: TextStyle(
-                        fontSize: 15,
                         color: Theme.of(context)
                             .colorScheme
                             .onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '$memorizedCount / ${widget.surah.ayahCount} ayahs memorized',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'How strong is this portion?',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Choose one strength for the whole selected portion.',
-              style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...AyahStrength.values.map(
-              (strength) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _StrengthCard(
-                  title: _strengthLabel(strength),
-                  icon: _strengthIcon(strength),
-                  selected: _strength == strength,
-                  onTap: () => _selectStrength(strength),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'What do you want to do?',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _ActionCard(
-              icon: Icons.menu_book,
-              title: 'Memorize',
-              description:
-                  'Practice the selected ayahs without showing the ayah text here.',
-              onTap: _openMemorize,
-            ),
-            const SizedBox(height: 12),
-            _ActionCard(
-              icon: Icons.refresh,
-              title: 'Revision',
-              description:
-                  'Start a revision session for this selected portion.',
-              onTap: _openRevision,
-            ),
-            const SizedBox(height: 12),
-            _ActionCard(
-              icon: Icons.mic,
-              title: 'Record',
-              description:
-                  'Make one continuous recording of this selected portion.',
-              onTap: _openRecord,
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Change selected ayahs'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StrengthCard extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _StrengthCard({
-    required this.title,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Card(
-      color: selected ? colorScheme.primaryContainer : null,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
               Icon(
-                icon,
+                selected
+                    ? Icons.check_circle
+                    : Icons.radio_button_unchecked,
                 color: selected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant,
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              if (selected)
-                Icon(
-                  Icons.check_circle,
-                  color: colorScheme.primary,
-                ),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-  final VoidCallback onTap;
-
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildActionCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) {
     return Card(
+      margin: const EdgeInsets.only(bottom: 10),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
@@ -419,6 +261,156 @@ class _ActionCard extends StatelessWidget {
               ),
               const Icon(Icons.chevron_right),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final memorizedCount =
+        widget.memorizationState.memorizedAyahCountForSurah(
+      widget.surah.number,
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.surah.nameTransliteration),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 110),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.surah.nameArabic,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.surah.nameTransliteration,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${widget.selectedAyahs.length} ayahs selected',
+                    style: const TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _ayahSummary(),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '$memorizedCount / ${widget.surah.ayahCount} ayahs memorized',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          const Text(
+            'How strong is this portion?',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          _buildStrengthCard(
+            strength: AyahStrength.strong,
+            title: 'Strong',
+            description: 'I know this portion well.',
+            icon: Icons.check_circle_outline,
+          ),
+
+          _buildStrengthCard(
+            strength: AyahStrength.needsReview,
+            title: 'Needs review',
+            description: 'I know it but need more revision.',
+            icon: Icons.refresh,
+          ),
+
+          _buildStrengthCard(
+            strength: AyahStrength.bad,
+            title: 'Bad',
+            description: 'I need to work on this portion more.',
+            icon: Icons.warning_amber_outlined,
+          ),
+
+          const SizedBox(height: 18),
+
+          const Text(
+            'What do you want to do?',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          _buildActionCard(
+            icon: Icons.menu_book,
+            title: 'Memorize',
+            description:
+                'Practice this portion from memory.',
+            onTap: _openMemorize,
+          ),
+
+          _buildActionCard(
+            icon: Icons.refresh,
+            title: 'Revision',
+            description:
+                'Revise this portion and log the session.',
+            onTap: _openRevision,
+          ),
+
+          _buildActionCard(
+            icon: Icons.mic,
+            title: 'Record',
+            description:
+                'Make one continuous recording of this portion.',
+            onTap: _openRecord,
+          ),
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: OutlinedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.arrow_back),
+            label: const Text('Change selected ayahs'),
           ),
         ),
       ),

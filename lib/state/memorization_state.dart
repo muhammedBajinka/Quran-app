@@ -6,6 +6,11 @@ enum AyahStrength {
   bad,
 }
 
+enum MemorizationSessionType {
+  memorization,
+  revision,
+}
+
 class MemorizationPortion {
   final String id;
   final int surahNumber;
@@ -42,6 +47,26 @@ class MemorizationRecording {
   });
 }
 
+class MemorizationSession {
+  final String id;
+  final int surahNumber;
+  final List<int> ayahNumbers;
+  final List<int> mistakeAyahs;
+  final MemorizationSessionType type;
+  final DateTime createdAt;
+
+  const MemorizationSession({
+    required this.id,
+    required this.surahNumber,
+    required this.ayahNumbers,
+    required this.mistakeAyahs,
+    required this.type,
+    required this.createdAt,
+  });
+
+  int get mistakeCount => mistakeAyahs.length;
+}
+
 class RevisionSession {
   final String id;
   final int surahNumber;
@@ -65,9 +90,7 @@ class MemorizationState extends ChangeNotifier {
 
   final List<RevisionSession> _revisionSessions = [];
 
-  // -----------------------------
-  // MEMORIZED AYAHS
-  // -----------------------------
+  final List<MemorizationSession> _memorizationSessions = [];
 
   Set<int> memorizedAyahsForSurah(int surahNumber) {
     return Set.unmodifiable(
@@ -79,9 +102,7 @@ class MemorizationState extends ChangeNotifier {
     int surahNumber,
     int ayahNumber,
   ) {
-    return _memorizedAyahs[surahNumber]
-            ?.contains(ayahNumber) ??
-        false;
+    return _memorizedAyahs[surahNumber]?.contains(ayahNumber) ?? false;
   }
 
   int memorizedAyahCountForSurah(int surahNumber) {
@@ -102,8 +123,7 @@ class MemorizationState extends ChangeNotifier {
     return _memorizedAyahs.keys
         .where(
           (surahNumber) =>
-              _memorizedAyahs[surahNumber]?.isNotEmpty ??
-              false,
+              _memorizedAyahs[surahNumber]?.isNotEmpty ?? false,
         )
         .length;
   }
@@ -156,21 +176,15 @@ class MemorizationState extends ChangeNotifier {
       return;
     }
 
-    _memorizedAyahs[surahNumber] = {1};
     notifyListeners();
   }
-
-  // -----------------------------
-  // MEMORIZATION PORTIONS
-  // -----------------------------
 
   List<MemorizationPortion> portionsForSurah(
     int surahNumber,
   ) {
     return List.unmodifiable(
       _memorizationPortions.where(
-        (portion) =>
-            portion.surahNumber == surahNumber,
+        (portion) => portion.surahNumber == surahNumber,
       ),
     );
   }
@@ -200,7 +214,6 @@ class MemorizationState extends ChangeNotifier {
     required AyahStrength strength,
   }) {
     final sortedAyahs = [...ayahNumbers]..sort();
-
     final now = DateTime.now();
 
     final existingIndex =
@@ -240,24 +253,18 @@ class MemorizationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // -----------------------------
-  // RECORDINGS
-  // -----------------------------
-
   List<MemorizationRecording> recordingsForSurah(
     int surahNumber,
   ) {
     return List.unmodifiable(
       _recordings.where(
-        (recording) =>
-            recording.surahNumber == surahNumber,
+        (recording) => recording.surahNumber == surahNumber,
       ),
     );
   }
 
-  List<MemorizationRecording> get recordings {
-    return List.unmodifiable(_recordings);
-  }
+  List<MemorizationRecording> get recordings =>
+      List.unmodifiable(_recordings);
 
   void addRecording(
     MemorizationRecording recording,
@@ -274,24 +281,18 @@ class MemorizationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // -----------------------------
-  // REVISION
-  // -----------------------------
-
   List<RevisionSession> revisionSessionsForSurah(
     int surahNumber,
   ) {
     return List.unmodifiable(
       _revisionSessions.where(
-        (session) =>
-            session.surahNumber == surahNumber,
+        (session) => session.surahNumber == surahNumber,
       ),
     );
   }
 
-  List<RevisionSession> get revisionSessions {
-    return List.unmodifiable(_revisionSessions);
-  }
+  List<RevisionSession> get revisionSessions =>
+      List.unmodifiable(_revisionSessions);
 
   void addRevisionSession(
     RevisionSession session,
@@ -300,7 +301,83 @@ class MemorizationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  int get totalRevisionSessions {
-    return _revisionSessions.length;
+  int get totalRevisionSessions =>
+      _revisionSessions.length;
+
+  List<MemorizationSession> sessionsForSurah(
+    int surahNumber,
+  ) {
+    return List.unmodifiable(
+      _memorizationSessions.where(
+        (session) => session.surahNumber == surahNumber,
+      ),
+    );
   }
+
+  List<MemorizationSession> get memorizationSessions =>
+      List.unmodifiable(_memorizationSessions);
+
+  int memorizationSessionCountForSurah(
+    int surahNumber,
+  ) {
+    return _memorizationSessions
+        .where(
+          (session) =>
+              session.surahNumber == surahNumber &&
+              session.type ==
+                  MemorizationSessionType.memorization,
+        )
+        .length;
+  }
+
+  int revisionSessionCountForSurah(
+    int surahNumber,
+  ) {
+    return _memorizationSessions
+        .where(
+          (session) =>
+              session.surahNumber == surahNumber &&
+              session.type ==
+                  MemorizationSessionType.revision,
+        )
+        .length;
+  }
+
+  void addMemorizationSession(
+    MemorizationSession session,
+  ) {
+    _memorizationSessions.add(session);
+
+    if (session.type ==
+        MemorizationSessionType.revision) {
+      _revisionSessions.add(
+        RevisionSession(
+          id: session.id,
+          surahNumber: session.surahNumber,
+          ayahNumbers: session.ayahNumbers,
+          createdAt: session.createdAt,
+        ),
+      );
+    }
+
+    notifyListeners();
+  }
+
+  int get totalMemorizationSessions =>
+      _memorizationSessions
+          .where(
+            (session) =>
+                session.type ==
+                MemorizationSessionType.memorization,
+          )
+          .length;
+
+  int get totalRevisionSessionsLogged =>
+      _memorizationSessions
+          .where(
+            (session) =>
+                session.type ==
+                MemorizationSessionType.revision,
+          )
+          .length;
 }
