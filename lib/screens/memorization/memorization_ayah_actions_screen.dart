@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import 'memorization_practice_screen.dart';
+import 'memorization_record_screen.dart';
+import 'memorization_revision_screen.dart';
 
-class MemorizationAyahActionsScreen extends StatelessWidget {
+class MemorizationAyahActionsScreen extends StatefulWidget {
   final QuranSurah surah;
   final List<int> selectedAyahs;
   final MemorizationState memorizationState;
@@ -15,12 +18,33 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
     required this.memorizationState,
   });
 
+  @override
+  State<MemorizationAyahActionsScreen> createState() =>
+      _MemorizationAyahActionsScreenState();
+}
+
+class _MemorizationAyahActionsScreenState
+    extends State<MemorizationAyahActionsScreen> {
+  AyahStrength? _strength;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final existing = widget.memorizationState.portionForSelection(
+      widget.surah.number,
+      widget.selectedAyahs,
+    );
+
+    _strength = existing?.strength;
+  }
+
   String _ayahSummary() {
-    if (selectedAyahs.isEmpty) {
+    final sorted = [...widget.selectedAyahs]..sort();
+
+    if (sorted.isEmpty) {
       return 'No ayahs selected';
     }
-
-    final sorted = [...selectedAyahs]..sort();
 
     if (sorted.length == 1) {
       return 'Ayah ${sorted.first}';
@@ -53,31 +77,114 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
     return ranges.join(', ');
   }
 
-  void _showComingSoon(
-    BuildContext context,
-    String activity,
-  ) {
+  void _selectStrength(AyahStrength strength) {
+    setState(() {
+      _strength = strength;
+    });
+
+    widget.memorizationState.saveMemorizationPortion(
+      surahNumber: widget.surah.number,
+      ayahNumbers: widget.selectedAyahs,
+      strength: strength,
+    );
+  }
+
+  void _openMemorize() {
+    if (_strength == null) {
+      _showStrengthMessage();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => MemorizationPracticeScreen(
+          surah: widget.surah,
+          selectedAyahs: widget.selectedAyahs,
+          memorizationState: widget.memorizationState,
+        ),
+      ),
+    );
+  }
+
+  void _openRevision() {
+    if (_strength == null) {
+      _showStrengthMessage();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => MemorizationRevisionScreen(
+          surah: widget.surah,
+          selectedAyahs: widget.selectedAyahs,
+          memorizationState: widget.memorizationState,
+        ),
+      ),
+    );
+  }
+
+  void _openRecord() {
+    if (_strength == null) {
+      _showStrengthMessage();
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => MemorizationRecordScreen(
+          surah: widget.surah,
+          selectedAyahs: widget.selectedAyahs,
+          memorizationState: widget.memorizationState,
+        ),
+      ),
+    );
+  }
+
+  void _showStrengthMessage() {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(
-          content: Text(
-            '$activity will be connected next.',
-          ),
+        const SnackBar(
+          content: Text('Choose the strength of this portion first.'),
         ),
       );
+  }
+
+  String _strengthLabel(AyahStrength strength) {
+    switch (strength) {
+      case AyahStrength.strong:
+        return 'Strong';
+      case AyahStrength.needsReview:
+        return 'Needs review';
+      case AyahStrength.bad:
+        return 'Bad';
+    }
+  }
+
+  IconData _strengthIcon(AyahStrength strength) {
+    switch (strength) {
+      case AyahStrength.strong:
+        return Icons.check_circle;
+      case AyahStrength.needsReview:
+        return Icons.refresh;
+      case AyahStrength.bad:
+        return Icons.warning_amber;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final memorizedCount =
-        memorizationState.memorizedAyahCountForSurah(
-      surah.number,
+        widget.memorizationState.memorizedAyahCountForSurah(
+      widget.surah.number,
     );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(surah.nameTransliteration),
+        title: Text(widget.surah.nameTransliteration),
       ),
       body: SafeArea(
         child: ListView(
@@ -90,7 +197,7 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      surah.nameArabic,
+                      widget.surah.nameArabic,
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -98,7 +205,7 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      surah.nameTransliteration,
+                      widget.surah.nameTransliteration,
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -106,10 +213,8 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${selectedAyahs.length} ayahs selected',
-                      style: const TextStyle(
-                        fontSize: 16,
-                      ),
+                      '${widget.selectedAyahs.length} ayahs selected',
+                      style: const TextStyle(fontSize: 16),
                     ),
                     const SizedBox(height: 6),
                     Text(
@@ -121,9 +226,9 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
                             .onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
-                      '$memorizedCount / ${surah.ayahCount} ayahs memorized',
+                      '$memorizedCount / ${widget.surah.ayahCount} ayahs memorized',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                       ),
@@ -132,9 +237,36 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
+            const Text(
+              'How strong is this portion?',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Choose one strength for the whole selected portion.',
+              style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...AyahStrength.values.map(
+              (strength) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _StrengthCard(
+                  title: _strengthLabel(strength),
+                  icon: _strengthIcon(strength),
+                  selected: _strength == strength,
+                  onTap: () => _selectStrength(strength),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             const Text(
               'What do you want to do?',
               style: TextStyle(
@@ -142,53 +274,92 @@ class MemorizationAyahActionsScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 12),
-
             _ActionCard(
               icon: Icons.menu_book,
               title: 'Memorize',
               description:
-                  'Practice the selected ayahs and mark their strength.',
-              onTap: () {
-                _showComingSoon(context, 'Memorize');
-              },
+                  'Practice the selected ayahs without showing the ayah text here.',
+              onTap: _openMemorize,
             ),
-
             const SizedBox(height: 12),
-
             _ActionCard(
               icon: Icons.refresh,
               title: 'Revision',
               description:
-                  'Revise the selected ayahs and record the session.',
-              onTap: () {
-                _showComingSoon(context, 'Revision');
-              },
+                  'Start a revision session for this selected portion.',
+              onTap: _openRevision,
             ),
-
             const SizedBox(height: 12),
-
             _ActionCard(
               icon: Icons.mic,
               title: 'Record',
               description:
-                  'Make one continuous recording of the selected portion.',
-              onTap: () {
-                _showComingSoon(context, 'Record');
-              },
+                  'Make one continuous recording of this selected portion.',
+              onTap: _openRecord,
             ),
-
             const SizedBox(height: 24),
-
             OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.arrow_back),
               label: const Text('Change selected ayahs'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StrengthCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _StrengthCard({
+    required this.title,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      color: selected ? colorScheme.primaryContainer : null,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (selected)
+                Icon(
+                  Icons.check_circle,
+                  color: colorScheme.primary,
+                ),
+            ],
+          ),
         ),
       ),
     );

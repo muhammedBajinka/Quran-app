@@ -156,6 +156,7 @@ class MemorizationState extends ChangeNotifier {
       return;
     }
 
+    _memorizedAyahs[surahNumber] = {1};
     notifyListeners();
   }
 
