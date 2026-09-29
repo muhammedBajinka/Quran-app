@@ -3,16 +3,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum AyahStrength {
-  strong,
-  needsReview,
-  bad,
-}
+enum AyahStrength { strong, needsReview, bad }
 
-enum MemorizationSessionType {
-  memorization,
-  revision,
-}
+enum MemorizationSessionType { memorization, revision }
 
 class MemorizationPortion {
   final String id;
@@ -32,13 +25,13 @@ class MemorizationPortion {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'surahNumber': surahNumber,
-        'ayahNumbers': ayahNumbers,
-        'strength': strength.name,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'surahNumber': surahNumber,
+    'ayahNumbers': ayahNumbers,
+    'strength': strength.name,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 
   factory MemorizationPortion.fromJson(Map<String, dynamic> json) {
     return MemorizationPortion(
@@ -73,13 +66,13 @@ class MemorizationRecording {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'surahNumber': surahNumber,
-        'ayahNumbers': ayahNumbers,
-        'filePath': filePath,
-        'createdAt': createdAt.toIso8601String(),
-        'durationSeconds': durationSeconds,
-      };
+    'id': id,
+    'surahNumber': surahNumber,
+    'ayahNumbers': ayahNumbers,
+    'filePath': filePath,
+    'createdAt': createdAt.toIso8601String(),
+    'durationSeconds': durationSeconds,
+  };
 
   factory MemorizationRecording.fromJson(Map<String, dynamic> json) {
     return MemorizationRecording(
@@ -113,13 +106,13 @@ class MemorizationSession {
   int get mistakeCount => mistakeAyahs.length;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'surahNumber': surahNumber,
-        'ayahNumbers': ayahNumbers,
-        'mistakeAyahs': mistakeAyahs,
-        'type': type.name,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'surahNumber': surahNumber,
+    'ayahNumbers': ayahNumbers,
+    'mistakeAyahs': mistakeAyahs,
+    'type': type.name,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory MemorizationSession.fromJson(Map<String, dynamic> json) {
     return MemorizationSession(
@@ -154,12 +147,12 @@ class RevisionSession {
   int get mistakeCount => mistakeAyahs.length;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'surahNumber': surahNumber,
-        'ayahNumbers': ayahNumbers,
-        'mistakeAyahs': mistakeAyahs,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'surahNumber': surahNumber,
+    'ayahNumbers': ayahNumbers,
+    'mistakeAyahs': mistakeAyahs,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory RevisionSession.fromJson(Map<String, dynamic> json) {
     return RevisionSession(
@@ -217,8 +210,9 @@ class MemorizationState extends ChangeNotifier {
 
       if (memorized != null) {
         for (final entry in memorized.entries) {
-          _memorizedAyahs[int.parse(entry.key)] =
-              Set<int>.from(entry.value as List);
+          _memorizedAyahs[int.parse(entry.key)] = Set<int>.from(
+            entry.value as List,
+          );
         }
       }
 
@@ -243,9 +237,8 @@ class MemorizationState extends ChangeNotifier {
       final revisions = data['revisionSessions'] as List? ?? [];
       _revisionSessions.addAll(
         revisions.map(
-          (item) => RevisionSession.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ),
+          (item) =>
+              RevisionSession.fromJson(Map<String, dynamic>.from(item as Map)),
         ),
       );
 
@@ -277,14 +270,18 @@ class MemorizationState extends ChangeNotifier {
       final data = {
         _learningSecondsKey: _learningSeconds,
         'memorizedAyahs': memorizedAyahs,
-        'portions':
-            _memorizationPortions.map((portion) => portion.toJson()).toList(),
-        'recordings':
-            _recordings.map((recording) => recording.toJson()).toList(),
-        'revisionSessions':
-            _revisionSessions.map((session) => session.toJson()).toList(),
-        'memorizationSessions':
-            _memorizationSessions.map((session) => session.toJson()).toList(),
+        'portions': _memorizationPortions
+            .map((portion) => portion.toJson())
+            .toList(),
+        'recordings': _recordings
+            .map((recording) => recording.toJson())
+            .toList(),
+        'revisionSessions': _revisionSessions
+            .map((session) => session.toJson())
+            .toList(),
+        'memorizationSessions': _memorizationSessions
+            .map((session) => session.toJson())
+            .toList(),
       };
 
       await prefs.setString(_storageKey, jsonEncode(data));
@@ -309,8 +306,7 @@ class MemorizationState extends ChangeNotifier {
       return;
     }
 
-    _learningSeconds +=
-        DateTime.now().difference(startedAt).inSeconds;
+    _learningSeconds += DateTime.now().difference(startedAt).inSeconds;
 
     _learningStartedAt = null;
 
@@ -325,8 +321,7 @@ class MemorizationState extends ChangeNotifier {
       return;
     }
 
-    _learningSeconds +=
-        DateTime.now().difference(startedAt).inSeconds;
+    _learningSeconds += DateTime.now().difference(startedAt).inSeconds;
 
     _learningStartedAt = DateTime.now();
 
@@ -335,9 +330,7 @@ class MemorizationState extends ChangeNotifier {
   }
 
   Set<int> memorizedAyahsForSurah(int surahNumber) {
-    return Set.unmodifiable(
-      _memorizedAyahs[surahNumber] ?? <int>{},
-    );
+    return Set.unmodifiable(_memorizedAyahs[surahNumber] ?? <int>{});
   }
 
   bool isAyahMemorized(int surahNumber, int ayahNumber) {
@@ -361,8 +354,7 @@ class MemorizationState extends ChangeNotifier {
   int get memorizedCount {
     return _memorizedAyahs.keys
         .where(
-          (surahNumber) =>
-              _memorizedAyahs[surahNumber]?.isNotEmpty ?? false,
+          (surahNumber) => _memorizedAyahs[surahNumber]?.isNotEmpty ?? false,
         )
         .length;
   }
@@ -371,14 +363,8 @@ class MemorizationState extends ChangeNotifier {
     return memorizedAyahCountForSurah(surahNumber) > 0;
   }
 
-  void setAyahsMemorized(
-    int surahNumber,
-    Iterable<int> ayahNumbers,
-  ) {
-    final ayahs = _memorizedAyahs.putIfAbsent(
-      surahNumber,
-      () => <int>{},
-    );
+  void setAyahsMemorized(int surahNumber, Iterable<int> ayahNumbers) {
+    final ayahs = _memorizedAyahs.putIfAbsent(surahNumber, () => <int>{});
 
     ayahs.addAll(ayahNumbers);
 
@@ -386,10 +372,7 @@ class MemorizationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeMemorizedAyah(
-    int surahNumber,
-    int ayahNumber,
-  ) {
+  void removeMemorizedAyah(int surahNumber, int ayahNumber) {
     final ayahs = _memorizedAyahs[surahNumber];
 
     if (ayahs == null) {
@@ -456,10 +439,7 @@ class MemorizationState extends ChangeNotifier {
     final existingIndex = _memorizationPortions.indexWhere(
       (portion) =>
           portion.surahNumber == surahNumber &&
-          setEquals(
-            {...portion.ayahNumbers},
-            {...sortedAyahs},
-          ),
+          setEquals({...portion.ayahNumbers}, {...sortedAyahs}),
     );
 
     final portion = MemorizationPortion(
@@ -496,10 +476,7 @@ class MemorizationState extends ChangeNotifier {
 
     _memorizationSessions.add(session);
 
-    setAyahsMemorized(
-      session.surahNumber,
-      session.ayahNumbers,
-    );
+    setAyahsMemorized(session.surahNumber, session.ayahNumbers);
 
     saveMemorizationPortion(
       surahNumber: session.surahNumber,
@@ -512,14 +489,11 @@ class MemorizationState extends ChangeNotifier {
 
   List<MemorizationRecording> recordingsForSurah(int surahNumber) {
     return List.unmodifiable(
-      _recordings.where(
-        (recording) => recording.surahNumber == surahNumber,
-      ),
+      _recordings.where((recording) => recording.surahNumber == surahNumber),
     );
   }
 
-  List<MemorizationRecording> get recordings =>
-      List.unmodifiable(_recordings);
+  List<MemorizationRecording> get recordings => List.unmodifiable(_recordings);
 
   void addRecording(MemorizationRecording recording) {
     _recordings.add(recording);
@@ -528,9 +502,7 @@ class MemorizationState extends ChangeNotifier {
   }
 
   void removeRecording(String recordingId) {
-    _recordings.removeWhere(
-      (recording) => recording.id == recordingId,
-    );
+    _recordings.removeWhere((recording) => recording.id == recordingId);
 
     _persist();
     notifyListeners();
@@ -538,9 +510,7 @@ class MemorizationState extends ChangeNotifier {
 
   List<RevisionSession> revisionSessionsForSurah(int surahNumber) {
     return List.unmodifiable(
-      _revisionSessions.where(
-        (session) => session.surahNumber == surahNumber,
-      ),
+      _revisionSessions.where((session) => session.surahNumber == surahNumber),
     );
   }
 
@@ -580,9 +550,7 @@ class MemorizationState extends ChangeNotifier {
 
   int revisionSessionCountForSurah(int surahNumber) {
     return _revisionSessions
-        .where(
-          (session) => session.surahNumber == surahNumber,
-        )
+        .where((session) => session.surahNumber == surahNumber)
         .length;
   }
 
@@ -605,9 +573,7 @@ class MemorizationState extends ChangeNotifier {
     notifyListeners();
   }
 
-  int get totalMemorizationSessions =>
-      _memorizationSessions.length;
+  int get totalMemorizationSessions => _memorizationSessions.length;
 
-  int get totalRevisionSessionsLogged =>
-      _revisionSessions.length;
+  int get totalRevisionSessionsLogged => _revisionSessions.length;
 }

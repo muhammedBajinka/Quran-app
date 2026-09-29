@@ -54,9 +54,7 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
       future: _surahsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
@@ -92,16 +90,12 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
                     const SizedBox(height: 8),
                     Text(
                       '${widget.memorizationState.totalMemorizedAyahs} ayahs memorized',
-                      style: const TextStyle(
-                        fontSize: 16,
-                      ),
+                      style: const TextStyle(fontSize: 16),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${widget.memorizationState.memorizedCount} Surahs started',
-                      style: const TextStyle(
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ],
                 ),
@@ -110,10 +104,7 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
             const SizedBox(height: 18),
             const Text(
               'Surahs',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             ...surahs.map(_buildSurahCard),
@@ -124,8 +115,7 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
   }
 
   Widget _buildSurahCard(QuranSurah surah) {
-    final memorizedCount =
-        widget.memorizationState.memorizedAyahCountForSurah(
+    final memorizedCount = widget.memorizationState.memorizedAyahCountForSurah(
       surah.number,
     );
 
@@ -134,18 +124,11 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 6,
-        ),
-        leading: CircleAvatar(
-          child: Text('${surah.number}'),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: CircleAvatar(child: Text('${surah.number}')),
         title: Text(
           surah.nameTransliteration,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         subtitle: Text(
           isMemorized
@@ -155,9 +138,7 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
         trailing: IconButton(
           tooltip: 'Select ayahs',
           icon: Icon(
-            isMemorized
-                ? Icons.check_circle
-                : Icons.add_circle_outline,
+            isMemorized ? Icons.check_circle : Icons.add_circle_outline,
           ),
           onPressed: () => _openAyahSelection(surah),
         ),

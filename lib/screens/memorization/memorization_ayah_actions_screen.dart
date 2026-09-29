@@ -35,10 +35,7 @@ class _MemorizationAyahActionsScreenState
     super.initState();
 
     _strength = widget.memorizationState
-        .portionForSelection(
-          widget.surah.number,
-          widget.selectedAyahs,
-        )
+        .portionForSelection(widget.surah.number, widget.selectedAyahs)
         ?.strength;
   }
 
@@ -65,17 +62,13 @@ class _MemorizationAyahActionsScreenState
         continue;
       }
 
-      ranges.add(
-        start == previous ? '$start' : '$start–$previous',
-      );
+      ranges.add(start == previous ? '$start' : '$start–$previous');
 
       start = current;
       previous = current;
     }
 
-    ranges.add(
-      start == previous ? '$start' : '$start–$previous',
-    );
+    ranges.add(start == previous ? '$start' : '$start–$previous');
 
     return ranges.join(', ');
   }
@@ -154,9 +147,7 @@ class _MemorizationAyahActionsScreenState
       ..hideCurrentSnackBar()
       ..showSnackBar(
         const SnackBar(
-          content: Text(
-            'Choose Strong, Needs review, or Bad first.',
-          ),
+          content: Text('Choose Strong, Needs review, or Bad first.'),
         ),
       );
   }
@@ -178,9 +169,7 @@ class _MemorizationAyahActionsScreenState
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              CircleAvatar(
-                child: Icon(icon),
-              ),
+              CircleAvatar(child: Icon(icon)),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -197,23 +186,17 @@ class _MemorizationAyahActionsScreenState
                     Text(
                       description,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
               Icon(
-                selected
-                    ? Icons.check_circle
-                    : Icons.radio_button_unchecked,
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
                 color: selected
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant,
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ],
           ),
@@ -237,10 +220,7 @@ class _MemorizationAyahActionsScreenState
           padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 26,
-                child: Icon(icon),
-              ),
+              CircleAvatar(radius: 26, child: Icon(icon)),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -257,9 +237,7 @@ class _MemorizationAyahActionsScreenState
                     Text(
                       description,
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -275,15 +253,12 @@ class _MemorizationAyahActionsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final memorizedCount =
-        widget.memorizationState.memorizedAyahCountForSurah(
+    final memorizedCount = widget.memorizationState.memorizedAyahCountForSurah(
       widget.surah.number,
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.surah.nameTransliteration),
-      ),
+      appBar: AppBar(title: Text(widget.surah.nameTransliteration)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 110),
         children: [
@@ -311,26 +286,20 @@ class _MemorizationAyahActionsScreenState
                   const SizedBox(height: 12),
                   Text(
                     '${widget.selectedAyahs.length} ayahs selected',
-                    style: const TextStyle(
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     _ayahSummary(),
                     style: TextStyle(
                       fontSize: 15,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     '$memorizedCount / ${widget.surah.ayahCount} ayahs memorized',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -341,10 +310,7 @@ class _MemorizationAyahActionsScreenState
 
           const Text(
             'How strong is this portion?',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 10),
@@ -374,10 +340,7 @@ class _MemorizationAyahActionsScreenState
 
           const Text(
             'What do you want to do?',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
 
           const SizedBox(height: 10),
@@ -385,24 +348,21 @@ class _MemorizationAyahActionsScreenState
           _buildActionCard(
             icon: Icons.menu_book,
             title: 'Memorize',
-            description:
-                'Practice this portion from memory.',
+            description: 'Practice this portion from memory.',
             onTap: _openMemorize,
           ),
 
           _buildActionCard(
             icon: Icons.refresh,
             title: 'Revision',
-            description:
-                'Revise this portion and log the session.',
+            description: 'Revise this portion and log the session.',
             onTap: _openRevision,
           ),
 
           _buildActionCard(
             icon: Icons.mic,
             title: 'Record',
-            description:
-                'Make one continuous recording of this portion.',
+            description: 'Make one continuous recording of this portion.',
             onTap: _openRecord,
           ),
         ],

@@ -40,8 +40,7 @@ class _MemorizationQuranSessionScreenState
   }
 
   String get _title {
-    return widget.type ==
-            MemorizationSessionType.memorization
+    return widget.type == MemorizationSessionType.memorization
         ? 'Memorization'
         : 'Revision';
   }
@@ -50,9 +49,7 @@ class _MemorizationQuranSessionScreenState
     final selected = _selectedAyahs.toSet();
 
     return widget.surah.ayahs
-        .where(
-          (ayah) => selected.contains(ayah.ayahNumber),
-        )
+        .where((ayah) => selected.contains(ayah.ayahNumber))
         .toList();
   }
 
@@ -67,59 +64,35 @@ class _MemorizationQuranSessionScreenState
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              18,
-              8,
-              18,
-              18,
-            ),
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
                   'Which ayah was wrong?',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Choose the ayah you made a mistake in.',
-                ),
+                const Text('Choose the ayah you made a mistake in.'),
                 const SizedBox(height: 16),
                 Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
                     itemCount: _selectedAyahs.length,
                     itemBuilder: (context, index) {
-                      final ayahNumber =
-                          _selectedAyahs[index];
+                      final ayahNumber = _selectedAyahs[index];
 
-                      final alreadyMarked =
-                          _mistakeAyahs.contains(
-                        ayahNumber,
-                      );
+                      final alreadyMarked = _mistakeAyahs.contains(ayahNumber);
 
                       return ListTile(
-                        leading: CircleAvatar(
-                          child: Text('$ayahNumber'),
-                        ),
-                        title: Text(
-                          'Ayah $ayahNumber',
-                        ),
+                        leading: CircleAvatar(child: Text('$ayahNumber')),
+                        title: Text('Ayah $ayahNumber'),
                         trailing: alreadyMarked
-                            ? const Icon(
-                                Icons.check,
-                              )
+                            ? const Icon(Icons.check)
                             : null,
                         onTap: () {
-                          Navigator.pop(
-                            context,
-                            ayahNumber,
-                          );
+                          Navigator.pop(context, ayahNumber);
                         },
                       );
                     },
@@ -159,22 +132,15 @@ class _MemorizationQuranSessionScreenState
     final session = MemorizationSession(
       id: now.microsecondsSinceEpoch.toString(),
       surahNumber: widget.surah.number,
-      ayahNumbers: List.unmodifiable(
-        _selectedAyahs,
-      ),
-      mistakeAyahs: List.unmodifiable(
-        (_mistakeAyahs.toList()..sort()),
-      ),
+      ayahNumbers: List.unmodifiable(_selectedAyahs),
+      mistakeAyahs: List.unmodifiable((_mistakeAyahs.toList()..sort())),
       type: widget.type,
       createdAt: now,
     );
 
     if (widget.type == MemorizationSessionType.memorization) {
       final strength = widget.memorizationState
-          .portionForSelection(
-            widget.surah.number,
-            widget.selectedAyahs,
-          )
+          .portionForSelection(widget.surah.number, widget.selectedAyahs)
           ?.strength;
 
       if (strength == null) {
@@ -186,23 +152,19 @@ class _MemorizationQuranSessionScreenState
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Choose a strength before starting memorization.',
-            ),
+            content: Text('Choose a strength before starting memorization.'),
           ),
         );
 
         return;
       }
 
-      final alreadyMemorized = widget.memorizationState
-          .memorizedAyahsForSurah(widget.surah.number);
+      final alreadyMemorized = widget.memorizationState.memorizedAyahsForSurah(
+        widget.surah.number,
+      );
 
       final newAyahCount = _selectedAyahs
-          .where(
-            (ayahNumber) =>
-                !alreadyMemorized.contains(ayahNumber),
-          )
+          .where((ayahNumber) => !alreadyMemorized.contains(ayahNumber))
           .length;
 
       widget.memorizationState.completeMemorization(
@@ -210,9 +172,7 @@ class _MemorizationQuranSessionScreenState
         strength: strength,
       );
 
-      await widget.progressState.recordMemorizationCompletion(
-        newAyahCount,
-      );
+      await widget.progressState.recordMemorizationCompletion(newAyahCount);
     } else {
       widget.memorizationState.addRevisionSession(
         RevisionSession(
@@ -235,10 +195,7 @@ class _MemorizationQuranSessionScreenState
       context,
       MaterialPageRoute<void>(
         builder: (context) {
-          return _SessionCompleteScreen(
-            surah: widget.surah,
-            session: session,
-          );
+          return _SessionCompleteScreen(surah: widget.surah, session: session);
         },
       ),
     );
@@ -252,69 +209,45 @@ class _MemorizationQuranSessionScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          '${widget.surah.nameTransliteration} · $_title',
-        ),
+        title: Text('${widget.surah.nameTransliteration} · $_title'),
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          18,
-          16,
-          150,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 150),
         itemCount: _ayahs.length,
         itemBuilder: (context, index) {
           final ayah = _ayahs[index];
 
-          final isWrong =
-              _mistakeAyahs.contains(
-            ayah.ayahNumber,
-          );
+          final isWrong = _mistakeAyahs.contains(ayah.ayahNumber);
 
           return Container(
-            margin: const EdgeInsets.only(
-              bottom: 18,
-            ),
+            margin: const EdgeInsets.only(bottom: 18),
             decoration: BoxDecoration(
               border: Border.all(
                 color: isWrong
-                    ? Theme.of(context)
-                        .colorScheme
-                        .error
-                    : Theme.of(context)
-                        .dividerColor,
+                    ? Theme.of(context).colorScheme.error
+                    : Theme.of(context).dividerColor,
                 width: isWrong ? 2 : 1,
               ),
-              borderRadius:
-                  BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
                     children: [
                       CircleAvatar(
                         radius: 18,
-                        child: Text(
-                          _ayahNumberLabel(
-                            ayah.ayahNumber,
-                          ),
-                        ),
+                        child: Text(_ayahNumberLabel(ayah.ayahNumber)),
                       ),
                       const Spacer(),
                       if (isWrong)
                         Text(
                           'Wrong',
                           style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .error,
-                            fontWeight:
-                                FontWeight.bold,
+                            color: Theme.of(context).colorScheme.error,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                     ],
@@ -324,21 +257,17 @@ class _MemorizationQuranSessionScreenState
                   // The actual Quran writing is intentionally
                   // hidden during blind memorization/revision.
                   Container(
-                    padding:
-                        const EdgeInsets.all(18),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Theme.of(context)
                           .colorScheme
                           .surfaceContainerHighest,
-                      borderRadius:
-                          BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
                       'Recite this ayah from memory.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 16,
-                      ),
+                      style: TextStyle(fontSize: 16),
                     ),
                   ),
                 ],
@@ -351,36 +280,23 @@ class _MemorizationQuranSessionScreenState
         top: false,
         child: Material(
           elevation: 8,
-          color: Theme.of(context)
-              .colorScheme
-              .surface,
+          color: Theme.of(context).colorScheme.surface,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              16,
-              10,
-              16,
-              10,
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _markWrong,
-                    icon: const Icon(
-                      Icons.close,
-                    ),
-                    label: Text(
-                      'Wrong: ${_mistakeAyahs.length}',
-                    ),
+                    icon: const Icon(Icons.close),
+                    label: Text('Wrong: ${_mistakeAyahs.length}'),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: FilledButton(
                     onPressed: _finish,
-                    child: const Text(
-                      'Finish',
-                    ),
+                    child: const Text('Finish'),
                   ),
                 ),
               ],
@@ -396,46 +312,32 @@ class _SessionCompleteScreen extends StatelessWidget {
   final QuranSurah surah;
   final MemorizationSession session;
 
-  const _SessionCompleteScreen({
-    required this.surah,
-    required this.session,
-  });
+  const _SessionCompleteScreen({required this.surah, required this.session});
 
   @override
   Widget build(BuildContext context) {
-    final typeText = session.type ==
-            MemorizationSessionType.memorization
+    final typeText = session.type == MemorizationSessionType.memorization
         ? 'Memorization'
         : 'Revision';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Session complete'),
-      ),
+      appBar: AppBar(title: const Text('Session complete')),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           const SizedBox(height: 20),
-          const Icon(
-            Icons.check_circle,
-            size: 80,
-          ),
+          const Icon(Icons.check_circle, size: 80),
           const SizedBox(height: 20),
           Text(
             '$typeText complete',
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 25,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             surah.nameTransliteration,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 18,
-            ),
+            style: const TextStyle(fontSize: 18),
           ),
           const SizedBox(height: 28),
           Card(
@@ -450,9 +352,7 @@ class _SessionCompleteScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Text(
-                    'ayahs practiced',
-                  ),
+                  const Text('ayahs practiced'),
                   const SizedBox(height: 22),
                   Text(
                     '${session.mistakeCount}',
@@ -461,14 +361,10 @@ class _SessionCompleteScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: session.mistakeCount == 0
                           ? null
-                          : Theme.of(context)
-                              .colorScheme
-                              .error,
+                          : Theme.of(context).colorScheme.error,
                     ),
                   ),
-                  const Text(
-                    'mistakes marked',
-                  ),
+                  const Text('mistakes marked'),
                   if (session.mistakeAyahs.isNotEmpty) ...[
                     const SizedBox(height: 18),
                     Text(
@@ -485,9 +381,7 @@ class _SessionCompleteScreen extends StatelessWidget {
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text(
-              'Done',
-            ),
+            child: const Text('Done'),
           ),
         ],
       ),

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -34,11 +33,8 @@ class SettingsScreen extends StatelessWidget {
           title: 'Reciters',
           subtitle: 'Choose which reciters are available',
           onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const _RecitersPage(),
-              ),
-            );
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const _RecitersPage()));
           },
         ),
 
@@ -157,10 +153,7 @@ class _SectionTitle extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-        ),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -188,14 +181,8 @@ class _SettingsTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 4,
-        ),
-        leading: Icon(
-          icon,
-          color: destructive ? Colors.red : green,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Icon(icon, color: destructive ? Colors.red : green),
         title: Text(
           title,
           style: TextStyle(

@@ -22,16 +22,9 @@ class MemorizationAyahSelectionScreen extends StatefulWidget {
       _MemorizationAyahSelectionScreenState();
 }
 
-enum _Activity {
-  memorize,
-  revision,
-  record,
-}
+enum _Activity { memorize, revision, record }
 
-enum _Scope {
-  wholeSurah,
-  chooseAyahs,
-}
+enum _Scope { wholeSurah, chooseAyahs }
 
 class _MemorizationAyahSelectionScreenState
     extends State<MemorizationAyahSelectionScreen> {
@@ -57,10 +50,7 @@ class _MemorizationAyahSelectionScreenState
         _selectedAyahs
           ..clear()
           ..addAll(
-            List<int>.generate(
-              widget.surah.ayahCount,
-              (index) => index + 1,
-            ),
+            List<int>.generate(widget.surah.ayahCount, (index) => index + 1),
           );
       } else {
         _selectedAyahs.clear();
@@ -88,9 +78,7 @@ class _MemorizationAyahSelectionScreenState
     final activity = _activity;
     final strength = _strength;
 
-    if (activity == null ||
-        _scope == null ||
-        _selectedAyahs.isEmpty) {
+    if (activity == null || _scope == null || _selectedAyahs.isEmpty) {
       return;
     }
 
@@ -200,9 +188,7 @@ class _MemorizationAyahSelectionScreenState
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              CircleAvatar(
-                child: Icon(icon),
-              ),
+              CircleAvatar(child: Icon(icon)),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -221,9 +207,7 @@ class _MemorizationAyahSelectionScreenState
                 ),
               ),
               Icon(
-                selected
-                    ? Icons.check_circle
-                    : Icons.radio_button_unchecked,
+                selected ? Icons.check_circle : Icons.radio_button_unchecked,
               ),
             ],
           ),
@@ -236,24 +220,16 @@ class _MemorizationAyahSelectionScreenState
   Widget build(BuildContext context) {
     final hasAyahs = _selectedAyahs.isNotEmpty;
     final canFinish =
-        _activity != null &&
-        _scope != null &&
-        hasAyahs &&
-        _strength != null;
+        _activity != null && _scope != null && hasAyahs && _strength != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.surah.nameTransliteration),
-      ),
+      appBar: AppBar(title: Text(widget.surah.nameTransliteration)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
           Text(
             widget.surah.nameArabic,
-            style: const TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text('${widget.surah.ayahCount} ayahs'),
@@ -261,10 +237,7 @@ class _MemorizationAyahSelectionScreenState
 
           const Text(
             '1. Activity',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
 
@@ -294,18 +267,14 @@ class _MemorizationAyahSelectionScreenState
             const SizedBox(height: 14),
             const Text(
               '2. Scope',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
 
             _choiceCard(
               icon: Icons.menu_book,
               title: 'Whole Surah',
-              description:
-                  'Use all ${widget.surah.ayahCount} ayahs.',
+              description: 'Use all ${widget.surah.ayahCount} ayahs.',
               selected: _scope == _Scope.wholeSurah,
               onTap: () => _chooseScope(_Scope.wholeSurah),
             ),
@@ -328,8 +297,7 @@ class _MemorizationAyahSelectionScreenState
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 5,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
@@ -347,8 +315,8 @@ class _MemorizationAyahSelectionScreenState
                       color: selected
                           ? Theme.of(context).colorScheme.primary
                           : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
+                                .colorScheme
+                                .surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,
@@ -371,10 +339,7 @@ class _MemorizationAyahSelectionScreenState
             const SizedBox(height: 20),
             const Text(
               '3. Strength',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
 

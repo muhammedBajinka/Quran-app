@@ -25,10 +25,7 @@ class QuranAudioController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSource({
-    required int surahNumber,
-    required String audioUrl,
-  }) {
+  void setSource({required int surahNumber, required String audioUrl}) {
     _surahNumber = surahNumber;
     _ayahNumber = 1;
     _audioUrl = audioUrl;

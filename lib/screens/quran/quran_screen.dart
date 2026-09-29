@@ -3,17 +3,20 @@ import 'package:flutter/material.dart';
 import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
+import '../../state/quran_reading_state.dart';
 import '../../state/audio/quran_audio_controller.dart';
 import 'surah_reader_screen.dart';
 
 class QuranScreen extends StatefulWidget {
   final MemorizationState memorizationState;
   final QuranAudioController audioController;
+  final QuranReadingState readingState;
 
   const QuranScreen({
     super.key,
     required this.memorizationState,
     required this.audioController,
+    required this.readingState,
   });
 
   @override
@@ -60,9 +63,7 @@ class _QuranScreenState extends State<QuranScreen> {
       future: _surahsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
+          return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
@@ -80,9 +81,7 @@ class _QuranScreenState extends State<QuranScreen> {
         final surahs = snapshot.data;
 
         if (surahs == null || surahs.isEmpty) {
-          return const Center(
-            child: Text('No Quran data found.'),
-          );
+          return const Center(child: Text('No Quran data found.'));
         }
 
         final filteredSurahs = _filterSurahs(surahs);
@@ -124,20 +123,18 @@ class _QuranScreenState extends State<QuranScreen> {
             ),
             Expanded(
               child: filteredSurahs.isEmpty
-                  ? const Center(
-                      child: Text('No Surahs found.'),
-                    )
+                  ? const Center(child: Text('No Surahs found.'))
                   : ListView.separated(
                       padding: const EdgeInsets.only(bottom: 12),
                       itemCount: filteredSurahs.length,
-                      separatorBuilder: (_, _) =>
-                          const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final surah = filteredSurahs[index];
-                        final isMemorized =
-                            widget.memorizationState.isMemorized(
+                        final status = widget.readingState.statusFor(
                           surah.number,
                         );
+                        final completionCount = widget.readingState
+                            .completionCountFor(surah.number);
 
                         return ListTile(
                           contentPadding: const EdgeInsets.symmetric(
@@ -145,47 +142,55 @@ class _QuranScreenState extends State<QuranScreen> {
                             vertical: 6,
                           ),
                           leading: CircleAvatar(
-                            backgroundColor:
-                                const Color(0xFFE8F3EE),
-                            foregroundColor:
-                                const Color(0xFF2E7D5B),
+                            backgroundColor: const Color(0xFFE8F3EE),
+                            foregroundColor: const Color(0xFF2E7D5B),
                             child: Text('${surah.number}'),
                           ),
                           title: Text(
-                            '${surah.number} · ${surah.nameTransliteration} · ${surah.nameArabic}',
+                            '${surah.nameTransliteration} · ${surah.nameArabic}',
                             textDirection: TextDirection.ltr,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
-                          subtitle: Text(
-                            '${surah.ayahCount} Ayahs',
-                          ),
-                          trailing: IconButton(
-                            tooltip: isMemorized
-                                ? 'Remove from memorization'
-                                : 'Mark for memorization',
-                            icon: Icon(
-                              isMemorized
-                                  ? Icons.bookmark
-                                  : Icons.bookmark_outline,
-                              color: isMemorized
-                                  ? const Color(0xFF2E7D5B)
-                                  : null,
+                          subtitle: Text('${surah.ayahCount} Ayahs'),
+                          trailing: SizedBox(
+                            width: 82,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  switch (status) {
+                                    SurahReadingStatus.start => 'Start',
+                                    SurahReadingStatus.inProgress =>
+                                      'In Progress',
+                                    SurahReadingStatus.completed => 'Completed',
+                                  },
+                                  textAlign: TextAlign.right,
+                                  style: const TextStyle(
+                                    color: Color(0xFF2E7D5B),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (status == SurahReadingStatus.completed)
+                                  Text(
+                                    '$completionCount',
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                              ],
                             ),
-                            onPressed: () {
-                              widget.memorizationState
-                                  .toggleMemorized(surah.number);
-                            },
                           ),
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    SurahReaderScreen(
-                                      surah: surah,
-                                      audioController: widget.audioController,
-                                    ),
+                                builder: (_) => SurahReaderScreen(
+                                  surah: surah,
+                                  audioController: widget.audioController,
+                                  readingState: widget.readingState,
+                                ),
                               ),
                             );
                           },

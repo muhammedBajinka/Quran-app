@@ -28,14 +28,12 @@ class MemorizationRecordScreen extends StatefulWidget {
       _MemorizationRecordScreenState();
 }
 
-class _MemorizationRecordScreenState
-    extends State<MemorizationRecordScreen> {
+class _MemorizationRecordScreenState extends State<MemorizationRecordScreen> {
   final AudioRecorder _recorder = AudioRecorder();
   final AudioPlayer _player = AudioPlayer();
 
   bool _isRecording = false;
   bool _isSaving = false;
-
 
   DateTime? _recordingStartedAt;
 
@@ -70,28 +68,19 @@ class _MemorizationRecordScreenState
         continue;
       }
 
-      ranges.add(
-        start == previous
-            ? '$start'
-            : '$start–$previous',
-      );
+      ranges.add(start == previous ? '$start' : '$start–$previous');
 
       start = current;
       previous = current;
     }
 
-    ranges.add(
-      start == previous
-          ? '$start'
-          : '$start–$previous',
-    );
+    ranges.add(start == previous ? '$start' : '$start–$previous');
 
     return ranges.join(', ');
   }
 
   Future<Directory> _recordingsDirectory() async {
-    final appDirectory =
-        await getApplicationDocumentsDirectory();
+    final appDirectory = await getApplicationDocumentsDirectory();
 
     final directory = Directory(
       '${appDirectory.path}/quran_memorization_recordings',
@@ -110,36 +99,29 @@ class _MemorizationRecordScreenState
     }
 
     try {
-      final hasPermission =
-          await _recorder.hasPermission();
+      final hasPermission = await _recorder.hasPermission();
 
       if (!hasPermission) {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Microphone permission is required to record.',
-            ),
+            content: Text('Microphone permission is required to record.'),
           ),
         );
 
         return;
       }
 
-      final directory =
-          await _recordingsDirectory();
+      final directory = await _recordingsDirectory();
 
-      final timestamp =
-          DateTime.now().millisecondsSinceEpoch;
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
 
       final filePath =
           '${directory.path}/surah_${widget.surah.number}_$timestamp.m4a';
 
       await _recorder.start(
-        const RecordConfig(
-          encoder: AudioEncoder.aacLc,
-        ),
+        const RecordConfig(encoder: AudioEncoder.aacLc),
         path: filePath,
       );
 
@@ -153,11 +135,7 @@ class _MemorizationRecordScreenState
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to start recording: $error',
-          ),
-        ),
+        SnackBar(content: Text('Unable to start recording: $error')),
       );
     }
   }
@@ -178,32 +156,22 @@ class _MemorizationRecordScreenState
 
       final durationSeconds = startedAt == null
           ? 0
-          : DateTime.now()
-              .difference(startedAt)
-              .inSeconds;
+          : DateTime.now().difference(startedAt).inSeconds;
 
       if (path == null || path.isEmpty) {
-        throw Exception(
-          'The recording file was not created.',
-        );
+        throw Exception('The recording file was not created.');
       }
 
       final recording = MemorizationRecording(
-        id: DateTime.now()
-            .microsecondsSinceEpoch
-            .toString(),
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
         surahNumber: widget.surah.number,
-        ayahNumbers: List.unmodifiable(
-          [...widget.selectedAyahs]..sort(),
-        ),
+        ayahNumbers: List.unmodifiable([...widget.selectedAyahs]..sort()),
         filePath: path,
         createdAt: DateTime.now(),
         durationSeconds: durationSeconds,
       );
 
-      widget.memorizationState.addRecording(
-        recording,
-      );
+      widget.memorizationState.addRecording(recording);
 
       await widget.progressState.recordRecording();
 
@@ -215,11 +183,8 @@ class _MemorizationRecordScreenState
         _recordingStartedAt = null;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recording saved.'),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Recording saved.')));
     } catch (error) {
       if (!mounted) return;
 
@@ -230,11 +195,7 @@ class _MemorizationRecordScreenState
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to save recording: $error',
-          ),
-        ),
+        SnackBar(content: Text('Unable to save recording: $error')),
       );
     }
   }
@@ -253,27 +214,18 @@ class _MemorizationRecordScreenState
         _recordingStartedAt = null;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recording cancelled.'),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Recording cancelled.')));
     } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to cancel recording: $error',
-          ),
-        ),
+        SnackBar(content: Text('Unable to cancel recording: $error')),
       );
     }
   }
 
-  Future<void> _playRecording(
-    MemorizationRecording recording,
-  ) async {
+  Future<void> _playRecording(MemorizationRecording recording) async {
     try {
       final file = File(recording.filePath);
 
@@ -282,44 +234,32 @@ class _MemorizationRecordScreenState
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'This recording file is no longer available.',
-            ),
+            content: Text('This recording file is no longer available.'),
           ),
         );
 
         return;
       }
 
-      await _player.setFilePath(
-        recording.filePath,
-      );
+      await _player.setFilePath(recording.filePath);
 
       await _player.play();
     } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to play recording: $error',
-          ),
-        ),
+        SnackBar(content: Text('Unable to play recording: $error')),
       );
     }
   }
 
-  Future<void> _deleteRecording(
-    MemorizationRecording recording,
-  ) async {
+  Future<void> _deleteRecording(MemorizationRecording recording) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Delete recording?'),
-          content: const Text(
-            'This recording will be permanently deleted.',
-          ),
+          content: const Text('This recording will be permanently deleted.'),
           actions: [
             TextButton(
               onPressed: () {
@@ -349,26 +289,17 @@ class _MemorizationRecordScreenState
         await file.delete();
       }
 
-      widget.memorizationState.removeRecording(
-        recording.id,
-      );
+      widget.memorizationState.removeRecording(recording.id);
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recording deleted.'),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Recording deleted.')));
     } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Unable to delete recording: $error',
-          ),
-        ),
+        SnackBar(content: Text('Unable to delete recording: $error')),
       );
     }
   }
@@ -382,15 +313,12 @@ class _MemorizationRecordScreenState
 
   @override
   Widget build(BuildContext context) {
-    final recordings =
-        widget.memorizationState.recordingsForSurah(
+    final recordings = widget.memorizationState.recordingsForSurah(
       widget.surah.number,
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Record'),
-      ),
+      appBar: AppBar(title: const Text('Record')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(18),
@@ -399,8 +327,7 @@ class _MemorizationRecordScreenState
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       widget.surah.nameTransliteration,
@@ -410,19 +337,12 @@ class _MemorizationRecordScreenState
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      _ayahSummary(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                      ),
-                    ),
+                    Text(_ayahSummary(), style: const TextStyle(fontSize: 16)),
                     const SizedBox(height: 8),
                     Text(
                       '${widget.selectedAyahs.length} ayahs',
                       style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -438,23 +358,15 @@ class _MemorizationRecordScreenState
                 child: Column(
                   children: [
                     Icon(
-                      _isRecording
-                          ? Icons.mic
-                          : Icons.mic_none,
+                      _isRecording ? Icons.mic : Icons.mic_none,
                       size: 64,
                       color: _isRecording
-                          ? Theme.of(context)
-                              .colorScheme
-                              .error
-                          : Theme.of(context)
-                              .colorScheme
-                              .primary,
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      _isRecording
-                          ? 'Recording...'
-                          : 'Ready to record',
+                      _isRecording ? 'Recording...' : 'Ready to record',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -470,32 +382,23 @@ class _MemorizationRecordScreenState
                     const SizedBox(height: 20),
                     if (_isRecording)
                       Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           FilledButton.icon(
-                            onPressed: _isSaving
-                                ? null
-                                : _stopRecording,
-                            icon: const Icon(
-                              Icons.stop,
-                            ),
+                            onPressed: _isSaving ? null : _stopRecording,
+                            icon: const Icon(Icons.stop),
                             label: const Text('Stop & Save'),
                           ),
                           const SizedBox(width: 12),
                           OutlinedButton(
-                            onPressed: _isSaving
-                                ? null
-                                : _cancelRecording,
+                            onPressed: _isSaving ? null : _cancelRecording,
                             child: const Text('Cancel'),
                           ),
                         ],
                       )
                     else
                       FilledButton.icon(
-                        onPressed: _isSaving
-                            ? null
-                            : _startRecording,
+                        onPressed: _isSaving ? null : _startRecording,
                         icon: const Icon(Icons.mic),
                         label: const Text('Start Recording'),
                       ),
@@ -508,10 +411,7 @@ class _MemorizationRecordScreenState
 
             const Text(
               'Saved recordings',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
@@ -520,52 +420,38 @@ class _MemorizationRecordScreenState
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(18),
-                  child: Text(
-                    'No recordings yet.',
-                  ),
+                  child: Text('No recordings yet.'),
                 ),
               )
             else
-              ...recordings.reversed.map(
-                (recording) {
-                  return Card(
-                    margin: const EdgeInsets.only(
-                      bottom: 10,
+              ...recordings.reversed.map((recording) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  child: ListTile(
+                    leading: IconButton(
+                      tooltip: 'Play recording',
+                      icon: const Icon(Icons.play_circle_fill),
+                      onPressed: () {
+                        _playRecording(recording);
+                      },
                     ),
-                    child: ListTile(
-                      leading: IconButton(
-                        tooltip: 'Play recording',
-                        icon: const Icon(
-                          Icons.play_circle_fill,
-                        ),
-                        onPressed: () {
-                          _playRecording(recording);
-                        },
-                      ),
-                      title: Text(
-                        _ayahNumbersLabel(
-                          recording.ayahNumbers,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${_formatDuration(recording.durationSeconds)} · '
-                        '${recording.createdAt.day}/'
-                        '${recording.createdAt.month}/'
-                        '${recording.createdAt.year}',
-                      ),
-                      trailing: IconButton(
-                        tooltip: 'Delete recording',
-                        icon: const Icon(
-                          Icons.delete_outline,
-                        ),
-                        onPressed: () {
-                          _deleteRecording(recording);
-                        },
-                      ),
+                    title: Text(_ayahNumbersLabel(recording.ayahNumbers)),
+                    subtitle: Text(
+                      '${_formatDuration(recording.durationSeconds)} · '
+                      '${recording.createdAt.day}/'
+                      '${recording.createdAt.month}/'
+                      '${recording.createdAt.year}',
                     ),
-                  );
-                },
-              ),
+                    trailing: IconButton(
+                      tooltip: 'Delete recording',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () {
+                        _deleteRecording(recording);
+                      },
+                    ),
+                  ),
+                );
+              }),
           ],
         ),
       ),
