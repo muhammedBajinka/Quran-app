@@ -36,6 +36,8 @@ class _MemorizationRecordScreenState extends State<MemorizationRecordScreen> {
   bool _isSaving = false;
 
   DateTime? _recordingStartedAt;
+  String? _playingRecordingId;
+  double _playbackSpeed = 1.0;
 
   @override
   void dispose() {
@@ -241,7 +243,31 @@ class _MemorizationRecordScreenState extends State<MemorizationRecordScreen> {
         return;
       }
 
+      if (_playingRecordingId == recording.id) {
+        if (_player.playing) {
+          await _player.pause();
+        } else {
+          if (_player.processingState == ProcessingState.completed) {
+            await _player.seek(Duration.zero);
+          }
+          await _player.play();
+        }
+
+        if (mounted) {
+          setState(() {});
+        }
+        return;
+      }
+
+      await _player.stop();
       await _player.setFilePath(recording.filePath);
+      await _player.setSpeed(_playbackSpeed);
+
+      if (!mounted) return;
+
+      setState(() {
+        _playingRecordingId = recording.id;
+      });
 
       await _player.play();
     } catch (error) {
@@ -250,6 +276,15 @@ class _MemorizationRecordScreenState extends State<MemorizationRecordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Unable to play recording: $error')),
       );
+    }
+  }
+
+  Future<void> _changePlaybackSpeed(double speed) async {
+    _playbackSpeed = speed;
+    await _player.setSpeed(speed);
+
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -425,29 +460,181 @@ class _MemorizationRecordScreenState extends State<MemorizationRecordScreen> {
               )
             else
               ...recordings.reversed.map((recording) {
+                final isCurrent = _playingRecordingId == recording.id;
+
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  child: ListTile(
-                    leading: IconButton(
-                      tooltip: 'Play recording',
-                      icon: const Icon(Icons.play_circle_fill),
-                      onPressed: () {
-                        _playRecording(recording);
-                      },
-                    ),
-                    title: Text(_ayahNumbersLabel(recording.ayahNumbers)),
-                    subtitle: Text(
-                      '${_formatDuration(recording.durationSeconds)} · '
-                      '${recording.createdAt.day}/'
-                      '${recording.createdAt.month}/'
-                      '${recording.createdAt.year}',
-                    ),
-                    trailing: IconButton(
-                      tooltip: 'Delete recording',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () {
-                        _deleteRecording(recording);
-                      },
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 10, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _ayahNumbersLabel(recording.ayahNumbers),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    '${recording.createdAt.day}/'
+                                    '${recording.createdAt.month}/'
+                                    '${recording.createdAt.year}',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete recording',
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () {
+                                _deleteRecording(recording);
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        if (isCurrent)
+                          StreamBuilder<Duration>(
+                            stream: _player.positionStream,
+                            initialData: _player.position,
+                            builder: (context, positionSnapshot) {
+                              final position =
+                                  positionSnapshot.data ?? Duration.zero;
+
+                              return StreamBuilder<Duration?>(
+                                stream: _player.durationStream,
+                                initialData: _player.duration,
+                                builder: (context, durationSnapshot) {
+                                  final duration =
+                                      durationSnapshot.data ??
+                                      Duration(
+                                        seconds: recording.durationSeconds,
+                                      );
+
+                                  final maxMilliseconds =
+                                      duration.inMilliseconds > 0
+                                      ? duration.inMilliseconds
+                                      : 1;
+
+                                  final positionMilliseconds = position
+                                      .inMilliseconds
+                                      .clamp(0, maxMilliseconds);
+
+                                  return Column(
+                                    children: [
+                                      Slider(
+                                        value: positionMilliseconds.toDouble(),
+                                        min: 0,
+                                        max: maxMilliseconds.toDouble(),
+                                        onChanged: (value) {
+                                          _player.seek(
+                                            Duration(
+                                              milliseconds: value.round(),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              _formatDuration(
+                                                position.inSeconds,
+                                              ),
+                                            ),
+                                            Text(
+                                              _formatDuration(
+                                                duration.inSeconds,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              _formatDuration(recording.durationSeconds),
+                            ),
+                          ),
+                        Row(
+                          children: [
+                            StreamBuilder<PlayerState>(
+                              stream: _player.playerStateStream,
+                              builder: (context, snapshot) {
+                                final state = snapshot.data;
+                                final playing =
+                                    isCurrent && (state?.playing ?? false);
+
+                                return IconButton.filled(
+                                  tooltip: playing ? 'Pause' : 'Play',
+                                  icon: Icon(
+                                    playing ? Icons.pause : Icons.play_arrow,
+                                  ),
+                                  onPressed: () {
+                                    _playRecording(recording);
+                                  },
+                                );
+                              },
+                            ),
+                            const Spacer(),
+                            PopupMenuButton<double>(
+                              tooltip: 'Playback speed',
+                              initialValue: _playbackSpeed,
+                              onSelected: _changePlaybackSpeed,
+                              itemBuilder: (context) => const [
+                                PopupMenuItem(
+                                  value: 0.75,
+                                  child: Text('0.75×'),
+                                ),
+                                PopupMenuItem(value: 1.0, child: Text('1.0×')),
+                                PopupMenuItem(
+                                  value: 1.25,
+                                  child: Text('1.25×'),
+                                ),
+                                PopupMenuItem(value: 1.5, child: Text('1.5×')),
+                                PopupMenuItem(value: 2.0, child: Text('2.0×')),
+                              ],
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  '${_playbackSpeed.toStringAsFixed(_playbackSpeed == 1.0 ? 1 : 2).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\\.$'), '')}×',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 );
