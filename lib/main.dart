@@ -3,12 +3,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'screens/audio/audio_screen.dart';
 import 'screens/memorization/memorization_screen.dart';
+import 'screens/settings/settings_screen.dart';
 import 'screens/quran/quran_screen.dart';
 import 'state/audio/media_audio_controller.dart';
 import 'state/audio/quran_audio_controller.dart';
 import 'state/memorization_state.dart';
 import 'state/progress_state.dart';
 import 'state/quran_reading_state.dart';
+import 'state/quran_settings_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +65,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
   final QuranAudioController _audioController = QuranAudioController();
   final MediaAudioController _mediaAudioController = MediaAudioController();
   final QuranReadingState _quranReadingState = QuranReadingState();
+  final QuranSettingsState _quranSettingsState = QuranSettingsState();
 
   int _selectedIndex = 0;
 
@@ -70,6 +73,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
   void initState() {
     super.initState();
     _quranReadingState.load();
+    _quranSettingsState.load();
   }
 
   static const List<String> _titles = [
@@ -86,6 +90,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
     _audioController.dispose();
     _mediaAudioController.dispose();
     _quranReadingState.dispose();
+    _quranSettingsState.dispose();
     widget.progressState.dispose();
     super.dispose();
   }
@@ -103,6 +108,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
         _memorizationState,
         widget.progressState,
         _quranReadingState,
+        _quranSettingsState,
       ]),
       builder: (context, child) {
         final pages = <Widget>[
@@ -110,6 +116,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
             memorizationState: _memorizationState,
             audioController: _audioController,
             readingState: _quranReadingState,
+            settingsState: _quranSettingsState,
           ),
           MemorizationScreen(
             memorizationState: _memorizationState,
@@ -120,11 +127,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
             memorizationState: _memorizationState,
           ),
           AudioScreen(audioController: _mediaAudioController),
-          const _PlaceholderPage(
-            title: 'Settings',
-            message: 'Account, Quran and audio settings will be built here.',
-            icon: Icons.settings_outlined,
-          ),
+          SettingsScreen(settingsState: _quranSettingsState),
         ];
 
         return Scaffold(
@@ -465,40 +468,6 @@ class _InfoTile extends StatelessWidget {
         trailing: Text(
           value,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderPage extends StatelessWidget {
-  final String title;
-  final String message;
-  final IconData icon;
-
-  const _PlaceholderPage({
-    required this.title,
-    required this.message,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48, color: const Color(0xFF2E7D5B)),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center),
-          ],
         ),
       ),
     );

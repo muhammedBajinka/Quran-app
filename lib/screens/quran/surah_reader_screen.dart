@@ -4,18 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/quran_models.dart';
 import '../../state/audio/quran_audio_controller.dart';
 import '../../state/quran_reading_state.dart';
+import '../../state/quran_settings_state.dart';
 import '../../widgets/quran/quran_audio_player.dart';
 
 class SurahReaderScreen extends StatefulWidget {
   final QuranSurah surah;
   final QuranAudioController audioController;
   final QuranReadingState readingState;
+  final QuranSettingsState settingsState;
 
   const SurahReaderScreen({
     super.key,
     required this.surah,
     required this.audioController,
     required this.readingState,
+    required this.settingsState,
   });
 
   @override
@@ -110,7 +113,10 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 Text(
                   _bismillah,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.amiriQuran(fontSize: 27, height: 1.7),
+                  style: GoogleFonts.amiriQuran(
+                    fontSize: widget.settingsState.arabicTextSize + 2,
+                    height: 1.7,
+                  ),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -119,7 +125,10 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.justify,
                 softWrap: true,
-                style: GoogleFonts.amiriQuran(fontSize: 25, height: 2.05),
+                style: GoogleFonts.amiriQuran(
+                  fontSize: widget.settingsState.arabicTextSize,
+                  height: 2.05,
+                ),
               ),
               const SizedBox(height: 28),
             ],

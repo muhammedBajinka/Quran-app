@@ -4,6 +4,7 @@ import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
 import '../../state/quran_reading_state.dart';
+import '../../state/quran_settings_state.dart';
 import '../../state/audio/quran_audio_controller.dart';
 import 'surah_reader_screen.dart';
 
@@ -11,12 +12,14 @@ class QuranScreen extends StatefulWidget {
   final MemorizationState memorizationState;
   final QuranAudioController audioController;
   final QuranReadingState readingState;
+  final QuranSettingsState settingsState;
 
   const QuranScreen({
     super.key,
     required this.memorizationState,
     required this.audioController,
     required this.readingState,
+    required this.settingsState,
   });
 
   @override
@@ -190,6 +193,7 @@ class _QuranScreenState extends State<QuranScreen> {
                                   surah: surah,
                                   audioController: widget.audioController,
                                   readingState: widget.readingState,
+                                  settingsState: widget.settingsState,
                                 ),
                               ),
                             );
