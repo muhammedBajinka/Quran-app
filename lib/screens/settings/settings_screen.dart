@@ -93,13 +93,11 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionTitle('App'),
 
-        _SettingsTile(
+        const _SettingsTile(
           icon: Icons.share_outlined,
           title: 'Share App',
-          subtitle: 'Share the Quran app with others',
-          onTap: () {
-            // Will use the URL supplied by the admin.
-          },
+          subtitle: 'Available when the app is published',
+          onTap: null,
         ),
 
         _SettingsTile(
@@ -107,38 +105,18 @@ class SettingsScreen extends StatelessWidget {
           title: 'Feedback',
           subtitle: 'Send feedback about the app',
           onTap: () {
-            // Will be connected to the feedback system.
-          },
-        ),
-
-        const SizedBox(height: 20),
-        const _SectionTitle('Account'),
-
-        _SettingsTile(
-          icon: Icons.login_outlined,
-          title: 'Sign in',
-          subtitle: 'Sign in to your account',
-          onTap: () {
-            // Supabase authentication will be connected here.
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const _FeedbackPage()));
           },
         ),
 
         _SettingsTile(
-          icon: Icons.logout_outlined,
-          title: 'Sign out',
-          subtitle: 'Sign out of your account',
+          icon: Icons.info_outline,
+          title: 'About',
+          subtitle: 'About this Quran app',
           onTap: () {
-            // Supabase authentication will be connected here.
-          },
-        ),
-
-        _SettingsTile(
-          icon: Icons.delete_outline,
-          title: 'Delete account',
-          subtitle: 'Permanently delete your account',
-          destructive: true,
-          onTap: () {
-            // Account deletion will be connected here.
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const _AboutPage()));
           },
         ),
       ],
@@ -238,6 +216,169 @@ class _RecitersPage extends StatelessWidget {
   }
 }
 
+class _FeedbackPage extends StatefulWidget {
+  const _FeedbackPage();
+
+  @override
+  State<_FeedbackPage> createState() => _FeedbackPageState();
+}
+
+class _FeedbackPageState extends State<_FeedbackPage> {
+  final TextEditingController _controller = TextEditingController();
+  String _category = 'General';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Feedback'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text(
+            'Help improve the app',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Report a problem, suggest a feature, or send general feedback.',
+          ),
+          const SizedBox(height: 20),
+          DropdownButtonFormField<String>(
+            initialValue: _category,
+            decoration: const InputDecoration(
+              labelText: 'Category',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'General', child: Text('General')),
+              DropdownMenuItem(
+                value: 'Problem',
+                child: Text('Report a problem'),
+              ),
+              DropdownMenuItem(
+                value: 'Suggestion',
+                child: Text('Feature suggestion'),
+              ),
+              DropdownMenuItem(
+                value: 'Quran content',
+                child: Text('Quran content'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _category = value;
+                });
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            minLines: 6,
+            maxLines: 10,
+            maxLength: 1000,
+            decoration: const InputDecoration(
+              labelText: 'Your feedback',
+              hintText: 'Tell us what you think...',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: () {
+              final message = _controller.text.trim();
+
+              if (message.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter your feedback first.'),
+                  ),
+                );
+                return;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Feedback sending will be enabled with the backend.',
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.send_outlined),
+            label: const Text('Send feedback'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AboutPage extends StatelessWidget {
+  const _AboutPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('About'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          Icon(Icons.menu_book_rounded, size: 64, color: Color(0xFF2E7D5B)),
+          SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Quran',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+            ),
+          ),
+          SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Version 1.0.0',
+              style: TextStyle(color: Colors.black54),
+            ),
+          ),
+          SizedBox(height: 28),
+          Text(
+            'About the app',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'A Quran app designed for reading, memorization, progress tracking, Duas, and beneficial Islamic audio.',
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Privacy',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Your personal Quran progress, memorization data, settings, and recordings are stored locally on your device.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectionTitle extends StatelessWidget {
   final String title;
 
@@ -259,15 +400,13 @@ class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
-  final bool destructive;
+  final VoidCallback? onTap;
 
   const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
-    this.destructive = false,
   });
 
   @override
@@ -278,14 +417,8 @@ class _SettingsTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Icon(icon, color: destructive ? Colors.red : green),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: destructive ? Colors.red : null,
-          ),
-        ),
+        leading: Icon(icon, color: green),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
