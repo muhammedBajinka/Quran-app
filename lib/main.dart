@@ -92,8 +92,24 @@ class _QuranHomePageState extends State<QuranHomePage> {
       setState(() {
         _reciters = reciters;
       });
-    } catch (_) {
-      // Keep the app usable when the reciter catalogue cannot be loaded.
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Reciters loaded: \${reciters.length}'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('RECITER ERROR: \$error'),
+          duration: const Duration(seconds: 20),
+        ),
+      );
     }
   }
 
