@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/media_repository.dart';
 import '../../models/audio/media_item.dart';
 import '../../state/audio/media_audio_controller.dart';
 import '../../widgets/audio/media_audio_player.dart';
@@ -10,14 +11,19 @@ class AudioScreen extends StatelessWidget {
 
   const AudioScreen({super.key, required this.audioController});
 
-  void _openSection(BuildContext context, String title, IconData icon) {
+  void _openSection(
+    BuildContext context,
+    String title,
+    IconData icon,
+    MediaItemType type,
+  ) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AudioSectionScreen(
           title: title,
           icon: icon,
+          type: type,
           audioController: audioController,
-          items: const <MediaItem>[],
         ),
       ),
     );
@@ -41,10 +47,15 @@ class AudioScreen extends StatelessWidget {
                     'Duas',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                  subtitle: const Text('Listen to dua audio'),
+                  subtitle: const Text('Listen to duas'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    _openSection(context, 'Duas', Icons.favorite_outline);
+                    _openSection(
+                      context,
+                      'Duas',
+                      Icons.favorite_outline,
+                      MediaItemType.dua,
+                    );
                   },
                 ),
               ),
@@ -66,6 +77,7 @@ class AudioScreen extends StatelessWidget {
                       context,
                       'Sermons',
                       Icons.record_voice_over_outlined,
+                      MediaItemType.sermon,
                     );
                   },
                 ),
@@ -82,7 +94,12 @@ class AudioScreen extends StatelessWidget {
                   subtitle: const Text('Listen to selected Quran recitations'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    _openSection(context, 'Recitations', Icons.graphic_eq);
+                    _openSection(
+                      context,
+                      'Recitations',
+                      Icons.graphic_eq,
+                      MediaItemType.recitation,
+                    );
                   },
                 ),
               ),
@@ -95,53 +112,131 @@ class AudioScreen extends StatelessWidget {
   }
 }
 
-class AudioSectionScreen extends StatelessWidget {
+class AudioSectionScreen extends StatefulWidget {
   final String title;
   final IconData icon;
+  final MediaItemType type;
   final MediaAudioController audioController;
-  final List<MediaItem> items;
 
   const AudioSectionScreen({
     super.key,
     required this.title,
     required this.icon,
+    required this.type,
     required this.audioController,
-    required this.items,
   });
+
+  @override
+  State<AudioSectionScreen> createState() => _AudioSectionScreenState();
+}
+
+class _AudioSectionScreenState extends State<AudioSectionScreen> {
+  final MediaRepository _repository = MediaRepository();
+
+  late Future<List<MediaItem>> _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _items = _repository.getItems(widget.type);
+  }
+
+  Future<void> _refresh() async {
+    setState(_load);
+    await _items;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(widget.title)),
       body: Column(
         children: [
           Expanded(
-            child: items.isEmpty
-                ? Center(
+            child: FutureBuilder<List<MediaItem>>(
+              future: _items,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(icon, size: 52),
+                          const Icon(Icons.cloud_off_outlined, size: 52),
                           const SizedBox(height: 16),
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 22,
+                          const Text(
+                            'Could not load content.',
+                            style: TextStyle(
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'No media has been added yet.',
-                            textAlign: TextAlign.center,
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: () {
+                              setState(_load);
+                            },
+                            child: const Text('Try Again'),
                           ),
                         ],
                       ),
                     ),
-                  )
-                : ListView.separated(
+                  );
+                }
+
+                final items = snapshot.data ?? const <MediaItem>[];
+
+                if (items.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.sizeOf(context).height * 0.55,
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(widget.icon, size: 52),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    widget.title,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'No media has been published yet.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     itemCount: items.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
@@ -161,11 +256,6 @@ class AudioSectionScreen extends StatelessWidget {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              if (item.speaker != null &&
-                                  item.speaker!.trim().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(item.speaker!),
-                              ],
                               if (item.description != null &&
                                   item.description!.trim().isNotEmpty) ...[
                                 const SizedBox(height: 6),
@@ -183,7 +273,7 @@ class AudioSectionScreen extends StatelessWidget {
                                     if (item.hasAudio)
                                       FilledButton.icon(
                                         onPressed: () {
-                                          audioController.playItem(item);
+                                          widget.audioController.playItem(item);
                                         },
                                         icon: const Icon(Icons.play_arrow),
                                         label: const Text('Listen'),
@@ -212,8 +302,11 @@ class AudioSectionScreen extends StatelessWidget {
                       );
                     },
                   ),
+                );
+              },
+            ),
           ),
-          MediaAudioPlayer(controller: audioController),
+          MediaAudioPlayer(controller: widget.audioController),
         ],
       ),
     );
