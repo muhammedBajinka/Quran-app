@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/quran_repository.dart';
+import '../../models/audio/quran_reciter.dart';
 import '../../models/quran_models.dart';
 import '../../state/memorization_state.dart';
 import '../../state/quran_reading_state.dart';
@@ -13,6 +14,7 @@ class QuranScreen extends StatefulWidget {
   final QuranAudioController audioController;
   final QuranReadingState readingState;
   final QuranSettingsState settingsState;
+  final List<QuranReciter> reciters;
 
   const QuranScreen({
     super.key,
@@ -20,6 +22,7 @@ class QuranScreen extends StatefulWidget {
     required this.audioController,
     required this.readingState,
     required this.settingsState,
+    required this.reciters,
   });
 
   @override
@@ -194,6 +197,7 @@ class _QuranScreenState extends State<QuranScreen> {
                                   audioController: widget.audioController,
                                   readingState: widget.readingState,
                                   settingsState: widget.settingsState,
+                                  reciters: widget.reciters,
                                 ),
                               ),
                             );

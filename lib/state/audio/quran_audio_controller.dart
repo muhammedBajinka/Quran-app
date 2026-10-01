@@ -15,6 +15,7 @@ class QuranAudioController extends ChangeNotifier {
   int? get surahNumber => _surahNumber;
   int? get ayahNumber => _ayahNumber;
   String? get audioUrl => _audioUrl;
+  Stream<Duration> get positionStream => _player.positionStream;
 
   bool get isPlaying => _player.playing;
 
@@ -25,10 +26,30 @@ class QuranAudioController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSource({required int surahNumber, required String audioUrl}) {
+  Future<void> setSource({
+    required int surahNumber,
+    required String audioUrl,
+  }) async {
+    final sourceChanged = _surahNumber != surahNumber || _audioUrl != audioUrl;
+
     _surahNumber = surahNumber;
     _ayahNumber = 1;
     _audioUrl = audioUrl;
+
+    if (sourceChanged) {
+      await _player.stop();
+      await _player.setUrl(audioUrl);
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> clearSource() async {
+    _surahNumber = null;
+    _ayahNumber = null;
+    _audioUrl = null;
+
+    await _player.stop();
     notifyListeners();
   }
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'data/quran_reciter_repository.dart';
+import 'models/audio/quran_reciter.dart';
 import 'screens/audio/audio_screen.dart';
 import 'screens/memorization/memorization_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -66,7 +68,9 @@ class _QuranHomePageState extends State<QuranHomePage> {
   final MediaAudioController _mediaAudioController = MediaAudioController();
   final QuranReadingState _quranReadingState = QuranReadingState();
   final QuranSettingsState _quranSettingsState = QuranSettingsState();
+  final QuranReciterRepository _reciterRepository = QuranReciterRepository();
 
+  List<QuranReciter> _reciters = const [];
   int _selectedIndex = 0;
 
   @override
@@ -74,6 +78,23 @@ class _QuranHomePageState extends State<QuranHomePage> {
     super.initState();
     _quranReadingState.load();
     _quranSettingsState.load();
+    _loadReciters();
+  }
+
+  Future<void> _loadReciters() async {
+    try {
+      final reciters = await _reciterRepository.getPublishedReciters();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _reciters = reciters;
+      });
+    } catch (_) {
+      // Keep the app usable when the reciter catalogue cannot be loaded.
+    }
   }
 
   static const List<String> _titles = [
@@ -117,6 +138,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
             audioController: _audioController,
             readingState: _quranReadingState,
             settingsState: _quranSettingsState,
+            reciters: _reciters,
           ),
           MemorizationScreen(
             memorizationState: _memorizationState,
@@ -127,7 +149,10 @@ class _QuranHomePageState extends State<QuranHomePage> {
             memorizationState: _memorizationState,
           ),
           AudioScreen(audioController: _mediaAudioController),
-          SettingsScreen(settingsState: _quranSettingsState),
+          SettingsScreen(
+            settingsState: _quranSettingsState,
+            reciters: _reciters,
+          ),
         ];
 
         return Scaffold(
