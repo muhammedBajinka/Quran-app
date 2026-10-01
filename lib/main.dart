@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'data/global_quran_reciters.dart';
 import 'data/quran_reciter_repository.dart';
 import 'models/audio/quran_reciter.dart';
 import 'screens/audio/audio_screen.dart';
@@ -70,7 +71,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
   final QuranSettingsState _quranSettingsState = QuranSettingsState();
   final QuranReciterRepository _reciterRepository = QuranReciterRepository();
 
-  List<QuranReciter> _reciters = const [];
+  List<QuranReciter> _reciters = globalQuranReciters;
   int _selectedIndex = 0;
 
   @override
@@ -83,17 +84,30 @@ class _QuranHomePageState extends State<QuranHomePage> {
 
   Future<void> _loadReciters() async {
     try {
-      final reciters = await _reciterRepository.getPublishedReciters();
+      final backendReciters = await _reciterRepository.getPublishedReciters();
+
+      if (!mounted) {
+        return;
+      }
+
+      final merged = <String, QuranReciter>{
+        for (final reciter in globalQuranReciters) reciter.id: reciter,
+        for (final reciter in backendReciters) reciter.id: reciter,
+      };
+
+      setState(() {
+        _reciters = merged.values.toList();
+      });
+    } catch (error) {
+      debugPrint('Failed to load backend reciters: $error');
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _reciters = reciters;
+        _reciters = globalQuranReciters;
       });
-    } catch (error) {
-      debugPrint('Failed to load reciters: $error');
     }
   }
 

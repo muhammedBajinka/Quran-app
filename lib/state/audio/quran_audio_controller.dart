@@ -66,6 +66,23 @@ class QuranAudioController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> playAyah({required int ayahNumber, required int startMs}) async {
+    if (_audioUrl == null || _audioUrl!.isEmpty) {
+      return;
+    }
+
+    if (_player.audioSource == null) {
+      await _player.setUrl(_audioUrl!);
+    }
+
+    _ayahNumber = ayahNumber;
+
+    await _player.seek(Duration(milliseconds: startMs));
+    await _player.play();
+
+    notifyListeners();
+  }
+
   Future<void> pause() async {
     await _player.pause();
     notifyListeners();

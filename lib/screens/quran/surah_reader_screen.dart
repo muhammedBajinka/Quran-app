@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../data/global_quran_audio.dart';
 import '../../data/quran_reciter_repository.dart';
 import '../../models/audio/quran_reciter.dart';
 import '../../models/quran_models.dart';
@@ -35,6 +37,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
   static const String _bismillah = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
 
   final ScrollController _scrollController = ScrollController();
+  final Map<int, TapGestureRecognizer> _ayahTapRecognizers = {};
   final QuranReciterRepository _reciterRepository = QuranReciterRepository();
 
   bool _completedThisVisit = false;
@@ -66,57 +69,54 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         .where(
           (reciter) =>
               widget.settingsState.isReciterEnabled(reciter.id) &&
-              _availableReciterIds.contains(reciter.id),
+              (GlobalQuranAudio.hasSurah(reciter, widget.surah.number) ||
+                  _availableReciterIds.contains(reciter.id)),
         )
         .toList();
   }
 
   Future<void> _loadInitialReciter() async {
+    Set<String> availableIds = const {};
+
     try {
-      final availableIds = await _reciterRepository
-          .getAvailableReciterIdsForSurah(widget.surah.number);
+      availableIds = await _reciterRepository.getAvailableReciterIdsForSurah(
+        widget.surah.number,
+      );
+    } catch (_) {
+      // Global reciters do not depend on the backend.
+    }
 
-      if (!mounted) {
-        return;
-      }
+    if (!mounted) {
+      return;
+    }
 
-      setState(() {
-        _availableReciterIds = availableIds;
-      });
+    setState(() {
+      _availableReciterIds = availableIds;
+    });
 
-      final enabledReciters = _enabledReciters;
+    final enabledReciters = _enabledReciters;
 
-      if (enabledReciters.isEmpty) {
-        await widget.audioController.clearSource();
-        return;
-      }
+    if (enabledReciters.isEmpty) {
+      await widget.audioController.clearSource();
+      return;
+    }
 
-      QuranReciter selected = enabledReciters.first;
+    QuranReciter selected = enabledReciters.first;
 
-      final defaultId = widget.settingsState.defaultReciterId;
+    final defaultId = widget.settingsState.defaultReciterId;
 
-      if (defaultId != null) {
-        for (final reciter in enabledReciters) {
-          if (reciter.id == defaultId) {
-            selected = reciter;
-            break;
-          }
+    if (defaultId != null) {
+      for (final reciter in enabledReciters) {
+        if (reciter.id == defaultId) {
+          selected = reciter;
+          break;
         }
       }
-
-      widget.audioController.setReciter(selected);
-      await _loadReciterAudio(selected, showUnavailableMessage: false);
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _availableReciterIds = const {};
-      });
-
-      await widget.audioController.clearSource();
     }
+
+    widget.audioController.setReciter(selected);
+
+    await _loadReciterAudio(selected, showUnavailableMessage: false);
   }
 
   Future<void> _loadReciterAudio(
@@ -133,23 +133,35 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     }
 
     try {
-      final results = await Future.wait<dynamic>([
-        _reciterRepository.getSurahAudioUrl(
-          reciterId: reciter.id,
-          surahNumber: widget.surah.number,
-        ),
-        _reciterRepository.getAyahTimestamps(
-          reciterId: reciter.id,
-          surahNumber: widget.surah.number,
-        ),
-      ]);
+      String? audioUrl;
+      List<QuranAyahTimestamp> timestamps = const [];
+
+      if (GlobalQuranAudio.supports(reciter)) {
+        audioUrl = GlobalQuranAudio.audioUrl(reciter, widget.surah.number);
+
+        timestamps = await GlobalQuranAudio.getAyahTimestamps(
+          reciter,
+          widget.surah.number,
+        );
+      } else {
+        final results = await Future.wait<dynamic>([
+          _reciterRepository.getSurahAudioUrl(
+            reciterId: reciter.id,
+            surahNumber: widget.surah.number,
+          ),
+          _reciterRepository.getAyahTimestamps(
+            reciterId: reciter.id,
+            surahNumber: widget.surah.number,
+          ),
+        ]);
+
+        audioUrl = results[0] as String?;
+        timestamps = results[1] as List<QuranAyahTimestamp>;
+      }
 
       if (!mounted || requestId != _audioRequestId) {
         return;
       }
-
-      final audioUrl = results[0] as String?;
-      final timestamps = results[1] as List<QuranAyahTimestamp>;
 
       if (audioUrl == null || audioUrl.trim().isEmpty) {
         await widget.audioController.clearSource();
@@ -199,6 +211,39 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         );
       }
     }
+  }
+
+  Future<void> _playAyah(int ayahNumber) async {
+    QuranAyahTimestamp? timestamp;
+
+    for (final item in _ayahTimestamps) {
+      if (item.ayahNumber == ayahNumber) {
+        timestamp = item;
+        break;
+      }
+    }
+
+    if (timestamp == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Ayah-by-ayah playback is not available for this reciter.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      _activeAyahNumber = ayahNumber;
+    });
+
+    await widget.audioController.playAyah(
+      ayahNumber: ayahNumber,
+      startMs: timestamp.startMs,
+    );
   }
 
   void _handleAudioPosition(Duration position) {
@@ -257,6 +302,12 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     _audioRequestId++;
     _positionSubscription?.cancel();
     _scrollController.removeListener(_handleScroll);
+
+    for (final recognizer in _ayahTapRecognizers.values) {
+      recognizer.dispose();
+    }
+    _ayahTapRecognizers.clear();
+
     _scrollController.dispose();
     super.dispose();
   }
@@ -283,9 +334,19 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
 
       final isActive = ayah.number == _activeAyahNumber;
 
+      final recognizer = _ayahTapRecognizers.putIfAbsent(
+        ayah.number,
+        () => TapGestureRecognizer(),
+      );
+
+      recognizer.onTap = () {
+        _playAyah(ayah.number);
+      };
+
       ayahSpans.add(
         TextSpan(
           text: '$text ﴿${ayah.number}﴾ ',
+          recognizer: recognizer,
           style: isActive
               ? const TextStyle(
                   backgroundColor: Color(0xFFE0F2E9),
