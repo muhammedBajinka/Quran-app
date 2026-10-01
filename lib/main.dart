@@ -106,7 +106,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('RECITER ERROR: \$error'),
+          content: Text('RECITER ERROR: $error'),
           duration: const Duration(seconds: 20),
         ),
       );
