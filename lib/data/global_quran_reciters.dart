@@ -38,6 +38,11 @@ const List<QuranReciter> globalQuranReciters = [
     sourceType: 'global',
   ),
   QuranReciter(
+    id: 'husary_mujawwad',
+    name: 'Mahmoud Khalil Al-Husary — Mujawwad',
+    sourceType: 'global',
+  ),
+  QuranReciter(
     id: 'sudais',
     name: 'Abdulrahman As-Sudais',
     sourceType: 'global',

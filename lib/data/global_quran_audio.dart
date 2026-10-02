@@ -16,6 +16,8 @@ class GlobalQuranAudio {
     'muhammad_ayyub': 'https://server8.mp3quran.net/ayyub/',
     'minshawi': 'https://server10.mp3quran.net/minsh/',
     'husary': 'https://server13.mp3quran.net/husr/',
+    'husary_mujawwad':
+        'https://server13.mp3quran.net/husr/Almusshaf-Al-Mojawwad/',
     'noreen_muhammad_siddiq': 'https://server16.mp3quran.net/nourin_siddig/Rewayat-Aldori-A-n-Abi-Amr/',
     'mansour_alsalimi': 'https://server14.mp3quran.net/mansor/',
     'adel_alkalbani': 'https://server8.mp3quran.net/a_klb/',
