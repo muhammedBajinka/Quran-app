@@ -177,19 +177,14 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
           );
         }
       } else {
-        final results = await Future.wait<dynamic>([
-          _reciterRepository.getSurahAudioUrl(
-            reciterId: reciter.id,
-            surahNumber: widget.surah.number,
-          ),
-          _reciterRepository.getAyahTimestamps(
-            reciterId: reciter.id,
-            surahNumber: widget.surah.number,
-          ),
-        ]);
-
-        audioUrl = results[0] as String?;
-        timestamps = results[1] as List<QuranAyahTimestamp>;
+        // Custom reciters: audio is required, timestamps are optional.
+        //
+        // Load the Surah audio first so missing or broken timestamp data can
+        // never prevent normal Surah playback.
+        audioUrl = await _reciterRepository.getSurahAudioUrl(
+          reciterId: reciter.id,
+          surahNumber: widget.surah.number,
+        );
 
         if (audioUrl == null || audioUrl.trim().isEmpty) {
           await widget.audioController.clearSource();
@@ -215,6 +210,27 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
           surahNumber: widget.surah.number,
           audioUrl: audioUrl,
         );
+
+        if (!mounted || requestId != _audioRequestId) {
+          return;
+        }
+
+        try {
+          timestamps = await _reciterRepository.getAyahTimestamps(
+            reciterId: reciter.id,
+            surahNumber: widget.surah.number,
+          );
+        } catch (error, stackTrace) {
+          // Timestamp failure must never disable working custom audio.
+          debugPrint(
+            'Custom reciter timing error | '
+            'reciter=${reciter.id} | '
+            'surah=${widget.surah.number} | '
+            'error=$error',
+          );
+          debugPrintStack(stackTrace: stackTrace);
+          timestamps = const [];
+        }
       }
 
       if (!mounted || requestId != _audioRequestId) {
