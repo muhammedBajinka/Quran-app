@@ -62,7 +62,7 @@ class QuranAudioController extends ChangeNotifier {
       await _player.setUrl(_audioUrl!);
     }
 
-    await _player.play();
+    _player.play();
     notifyListeners();
   }
 
@@ -78,7 +78,7 @@ class QuranAudioController extends ChangeNotifier {
     _ayahNumber = ayahNumber;
 
     await _player.seek(Duration(milliseconds: startMs));
-    await _player.play();
+    _player.play();
 
     notifyListeners();
   }
