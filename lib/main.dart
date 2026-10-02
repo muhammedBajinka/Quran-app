@@ -8,6 +8,7 @@ import 'screens/audio/audio_screen.dart';
 import 'screens/memorization/memorization_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/quran/quran_screen.dart';
+import 'services/analytics_service.dart';
 import 'state/audio/media_audio_controller.dart';
 import 'state/audio/quran_audio_controller.dart';
 import 'state/memorization_state.dart';
@@ -64,6 +65,7 @@ class QuranHomePage extends StatefulWidget {
 }
 
 class _QuranHomePageState extends State<QuranHomePage> {
+  final AnalyticsService _analyticsService = AnalyticsService();
   final MemorizationState _memorizationState = MemorizationState();
   final QuranAudioController _audioController = QuranAudioController();
   final MediaAudioController _mediaAudioController = MediaAudioController();
@@ -77,6 +79,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
   @override
   void initState() {
     super.initState();
+    _analyticsService.track('app_open');
     _quranReadingState.load();
     _quranSettingsState.load();
     _loadReciters();
@@ -131,9 +134,25 @@ class _QuranHomePageState extends State<QuranHomePage> {
   }
 
   void _selectTab(int index) {
+    if (index == _selectedIndex) {
+      return;
+    }
+
     setState(() {
       _selectedIndex = index;
     });
+
+    switch (index) {
+      case 0:
+        _analyticsService.track('quran_opened');
+        break;
+      case 1:
+        _analyticsService.track('memorization_opened');
+        break;
+      case 3:
+        _analyticsService.track('dua_opened');
+        break;
+    }
   }
 
   @override

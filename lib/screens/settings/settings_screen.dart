@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../models/audio/quran_reciter.dart';
+import '../../services/app_config_service.dart';
+import '../../services/app_info_service.dart';
+import '../../services/feedback_service.dart';
 import '../../state/quran_settings_state.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -12,6 +16,39 @@ class SettingsScreen extends StatelessWidget {
     required this.settingsState,
     this.reciters = const [],
   });
+
+  Future<void> _shareApp(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final config = await AppConfigService().loadConfig();
+      final release = config.currentRelease;
+
+      if (release == null || release.downloadUrl.trim().isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('The app download link is not available yet.'),
+          ),
+        );
+        return;
+      }
+
+      final message = config.shareMessage.trim();
+      final downloadUrl = release.downloadUrl.trim();
+
+      final shareText = message.isEmpty
+          ? downloadUrl
+          : '$message\n\n$downloadUrl';
+
+      await SharePlus.instance.share(ShareParams(text: shareText));
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Could not open sharing. Please try again.'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,11 +130,11 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 20),
         const _SectionTitle('App'),
 
-        const _SettingsTile(
+        _SettingsTile(
           icon: Icons.share_outlined,
           title: 'Share App',
-          subtitle: 'Available when the app is published',
-          onTap: null,
+          subtitle: 'Share the latest app download',
+          onTap: () => _shareApp(context),
         ),
 
         _SettingsTile(
@@ -111,6 +148,16 @@ class SettingsScreen extends StatelessWidget {
         ),
 
         _SettingsTile(
+          icon: Icons.privacy_tip_outlined,
+          title: 'Privacy Policy',
+          subtitle: 'How your information is handled',
+          onTap: () {
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const _PrivacyPage()));
+          },
+        ),
+
+        _SettingsTile(
           icon: Icons.info_outline,
           title: 'About',
           subtitle: 'About this Quran app',
@@ -119,6 +166,9 @@ class SettingsScreen extends StatelessWidget {
                 .push(MaterialPageRoute(builder: (_) => const _AboutPage()));
           },
         ),
+
+        const SizedBox(height: 16),
+        const _SettingsVersion(),
       ],
     );
   }
@@ -225,12 +275,66 @@ class _FeedbackPage extends StatefulWidget {
 
 class _FeedbackPageState extends State<_FeedbackPage> {
   final TextEditingController _controller = TextEditingController();
+  final FeedbackService _feedbackService = FeedbackService();
+
   String _category = 'General';
+  bool _sending = false;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendFeedback() async {
+    if (_sending) {
+      return;
+    }
+
+    final message = _controller.text.trim();
+
+    if (message.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your feedback first.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _sending = true;
+    });
+
+    try {
+      await _feedbackService.submit(category: _category, message: message);
+
+      if (!mounted) {
+        return;
+      }
+
+      _controller.clear();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Thank you. Your feedback was sent.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not send feedback. Check your connection and try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _sending = false;
+        });
+      }
+    }
   }
 
   @override
@@ -274,17 +378,20 @@ class _FeedbackPageState extends State<_FeedbackPage> {
                 child: Text('Quran content'),
               ),
             ],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _category = value;
-                });
-              }
-            },
+            onChanged: _sending
+                ? null
+                : (value) {
+                    if (value != null) {
+                      setState(() {
+                        _category = value;
+                      });
+                    }
+                  },
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _controller,
+            enabled: !_sending,
             minLines: 6,
             maxLines: 10,
             maxLength: 1000,
@@ -297,28 +404,99 @@ class _FeedbackPageState extends State<_FeedbackPage> {
           ),
           const SizedBox(height: 8),
           FilledButton.icon(
-            onPressed: () {
-              final message = _controller.text.trim();
+            onPressed: _sending ? null : _sendFeedback,
+            icon: _sending
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send_outlined),
+            label: Text(_sending ? 'Sending...' : 'Send feedback'),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Feedback includes an anonymous installation identifier and '
+            'the installed app version so problems can be investigated. '
+            'Do not include private or sensitive information in your message.',
+            style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-              if (message.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter your feedback first.'),
-                  ),
-                );
-                return;
-              }
+class _PrivacyPage extends StatelessWidget {
+  const _PrivacyPage();
 
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Feedback sending will be enabled with the backend.',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.send_outlined),
-            label: const Text('Send feedback'),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Privacy Policy'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(24),
+        children: const [
+          Text(
+            'Privacy',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 20),
+          Text(
+            'Data stored on your device',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Your Quran progress, memorization information, app settings, '
+            'and recordings are stored locally on your device unless a '
+            'feature clearly tells you otherwise.',
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Feedback',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'When you send feedback, the app sends your feedback category '
+            'and message, an anonymous installation identifier, the app '
+            'version and build number, and the app platform. The anonymous '
+            'installation identifier is not your name and is not a user '
+            'account.',
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Anonymous analytics',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'The app collects limited anonymous usage information to help '
+            'understand how the app is used and improve reliability. This '
+            'includes an anonymous installation identifier, app version and '
+            'build number, platform, event type, and event time.',
+          ),
+          SizedBox(height: 12),
+          Text(
+            'The analytics do not include your name, messages, contacts, '
+            'recordings, precise location, or the specific Quran verses and '
+            'memorization content you read or study.',
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Future accounts',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'If user accounts or connection features are introduced later, '
+            'their identity and privacy controls will be handled separately '
+            'from the anonymous installation identifier.',
           ),
         ],
       ),
@@ -339,42 +517,85 @@ class _AboutPage extends StatelessWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.all(24),
-        children: const [
-          Icon(Icons.menu_book_rounded, size: 64, color: Color(0xFF2E7D5B)),
-          SizedBox(height: 16),
-          Center(
+        children: [
+          const Icon(
+            Icons.menu_book_rounded,
+            size: 64,
+            color: Color(0xFF2E7D5B),
+          ),
+          const SizedBox(height: 16),
+          const Center(
             child: Text(
               'Quran',
               style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
             ),
           ),
-          SizedBox(height: 8),
-          Center(
-            child: Text(
-              'Version 1.0.0',
-              style: TextStyle(color: Colors.black54),
-            ),
-          ),
-          SizedBox(height: 28),
-          Text(
+          const SizedBox(height: 8),
+          const Center(child: _VersionText()),
+          const SizedBox(height: 28),
+          const Text(
             'About the app',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
-          SizedBox(height: 8),
-          Text(
-            'A Quran app designed for reading, memorization, progress tracking, Duas, and beneficial Islamic audio.',
+          const SizedBox(height: 8),
+          const Text(
+            'A Quran app designed for reading, memorization, progress '
+            'tracking, Duas, and beneficial Islamic audio.',
           ),
-          SizedBox(height: 24),
-          Text(
+          const SizedBox(height: 24),
+          const Text(
             'Privacy',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
-          SizedBox(height: 8),
-          Text(
-            'Your personal Quran progress, memorization data, settings, and recordings are stored locally on your device.',
+          const SizedBox(height: 8),
+          const Text(
+            'Your personal Quran progress, memorization data, settings, '
+            'and recordings remain on your device unless a feature clearly '
+            'states that information will be sent.',
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SettingsVersion extends StatelessWidget {
+  const _SettingsVersion();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: _VersionText(
+        prefix: 'Version ',
+        style: TextStyle(fontSize: 12, color: Colors.black45),
+      ),
+    );
+  }
+}
+
+class _VersionText extends StatelessWidget {
+  final String prefix;
+  final TextStyle? style;
+
+  const _VersionText({this.prefix = 'Version ', this.style});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<AppInfo>(
+      future: AppInfoService().load(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Text(
+            '$prefix...',
+            style: style ?? const TextStyle(color: Colors.black54),
+          );
+        }
+
+        return Text(
+          '$prefix${snapshot.data!.displayVersion}',
+          style: style ?? const TextStyle(color: Colors.black54),
+        );
+      },
     );
   }
 }
