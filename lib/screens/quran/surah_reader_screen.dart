@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/global_quran_audio.dart';
@@ -37,7 +38,9 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
   static const String _bismillah = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
 
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _quranTextKey = GlobalKey();
   final Map<int, TapGestureRecognizer> _ayahTapRecognizers = {};
+  final Map<int, TextSpan> _ayahTextSpans = {};
   final QuranReciterRepository _reciterRepository = QuranReciterRepository();
 
   bool _completedThisVisit = false;
@@ -340,6 +343,96 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     setState(() {
       _activeAyahNumber = activeAyah;
     });
+
+    if (activeAyah != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToActiveAyah(activeAyah!);
+      });
+    }
+  }
+
+  void _scrollToActiveAyah(int ayahNumber) {
+    if (!mounted || _ayahTimestamps.isEmpty || !_scrollController.hasClients) {
+      return;
+    }
+
+    final textSpan = _ayahTextSpans[ayahNumber];
+    final context = _quranTextKey.currentContext;
+
+    if (textSpan == null || context == null) {
+      return;
+    }
+
+    final renderObject = context.findRenderObject();
+
+    if (renderObject is! RenderParagraph) {
+      return;
+    }
+
+    final ayahLocalY = _verticalPositionForSpan(renderObject, textSpan);
+    final paragraphBox = renderObject.localToGlobal(Offset.zero);
+    final ayahScreenY = paragraphBox.dy + ayahLocalY;
+
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final comfortableTop = screenHeight * 0.30;
+    final comfortableBottom = screenHeight * 0.62;
+
+    if (ayahScreenY >= comfortableTop && ayahScreenY <= comfortableBottom) {
+      return;
+    }
+
+    final desiredY = screenHeight * 0.46;
+    final difference = ayahScreenY - desiredY;
+
+    final position = _scrollController.position;
+    final target = (position.pixels + difference).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+
+    _scrollController.animateTo(
+      target.toDouble(),
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  double _verticalPositionForSpan(
+    RenderParagraph paragraph,
+    TextSpan targetSpan,
+  ) {
+    final fullText = paragraph.text.toPlainText();
+    final targetText = targetSpan.toPlainText();
+
+    if (targetText.isEmpty) {
+      return 0;
+    }
+
+    int offset = 0;
+
+    for (final span in _ayahTextSpans.values) {
+      if (identical(span, targetSpan)) {
+        break;
+      }
+
+      offset += span.toPlainText().length;
+    }
+
+    if (offset >= fullText.length) {
+      return 0;
+    }
+
+    final end = (offset + 1).clamp(0, fullText.length);
+
+    final boxes = paragraph.getBoxesForSelection(
+      TextSelection(baseOffset: offset, extentOffset: end),
+    );
+
+    if (boxes.isEmpty) {
+      return 0;
+    }
+
+    return boxes.first.top + (boxes.first.bottom - boxes.first.top) / 2;
   }
 
   Future<void> _selectReciter(QuranReciter reciter) async {
@@ -388,6 +481,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
     final hasSeparateBismillah = surah.number != 1 && surah.number != 9;
 
     final ayahSpans = <InlineSpan>[];
+    _ayahTextSpans.clear();
 
     for (int index = 0; index < surah.ayahs.length; index++) {
       final ayah = surah.ayahs[index];
@@ -411,18 +505,19 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         _playAyah(ayah.number);
       };
 
-      ayahSpans.add(
-        TextSpan(
-          text: '$text ﴿${ayah.number}﴾ ',
-          recognizer: recognizer,
-          style: isActive
-              ? const TextStyle(
-                  backgroundColor: Color(0xFFE0F2E9),
-                  color: Color(0xFF145A3A),
-                )
-              : null,
-        ),
+      final ayahSpan = TextSpan(
+        text: '$text ﴿${ayah.number}﴾ ',
+        recognizer: recognizer,
+        style: isActive
+            ? const TextStyle(
+                backgroundColor: Color(0xFFE0F2E9),
+                color: Color(0xFF145A3A),
+              )
+            : null,
       );
+
+      _ayahTextSpans[ayah.number] = ayahSpan;
+      ayahSpans.add(ayahSpan);
     }
 
     return Scaffold(
@@ -459,6 +554,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
               ],
               Text.rich(
                 TextSpan(children: ayahSpans),
+                key: _quranTextKey,
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.justify,
                 softWrap: true,
