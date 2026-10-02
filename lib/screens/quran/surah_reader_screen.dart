@@ -450,7 +450,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 Text(
                   _bismillah,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.amiriQuran(
+                  style: GoogleFonts.notoNaskhArabic(
                     fontSize: widget.settingsState.arabicTextSize + 2,
                     height: 1.7,
                   ),
@@ -462,7 +462,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.justify,
                 softWrap: true,
-                style: GoogleFonts.amiriQuran(
+                style: GoogleFonts.notoNaskhArabic(
                   fontSize: widget.settingsState.arabicTextSize,
                   height: 2.05,
                 ),
