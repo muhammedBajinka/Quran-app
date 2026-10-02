@@ -139,10 +139,43 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
       if (GlobalQuranAudio.supports(reciter)) {
         audioUrl = GlobalQuranAudio.audioUrl(reciter, widget.surah.number);
 
-        timestamps = await GlobalQuranAudio.getAyahTimestamps(
-          reciter,
-          widget.surah.number,
+        if (audioUrl == null || audioUrl.trim().isEmpty) {
+          await widget.audioController.clearSource();
+
+          if (!mounted || requestId != _audioRequestId) {
+            return;
+          }
+
+          if (showUnavailableMessage) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '${reciter.name} does not have audio for this Surah yet.',
+                ),
+              ),
+            );
+          }
+
+          return;
+        }
+
+        // Load the verified Surah MP3 first. Timing data is optional and
+        // must never prevent normal Surah playback.
+        await widget.audioController.setSource(
+          surahNumber: widget.surah.number,
+          audioUrl: audioUrl,
         );
+
+        if (!mounted || requestId != _audioRequestId) {
+          return;
+        }
+
+        if (GlobalQuranAudio.hasAyahTiming(reciter)) {
+          timestamps = await GlobalQuranAudio.getAyahTimestamps(
+            reciter,
+            widget.surah.number,
+          );
+        }
       } else {
         final results = await Future.wait<dynamic>([
           _reciterRepository.getSurahAudioUrl(
@@ -157,36 +190,32 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
 
         audioUrl = results[0] as String?;
         timestamps = results[1] as List<QuranAyahTimestamp>;
-      }
 
-      if (!mounted || requestId != _audioRequestId) {
-        return;
-      }
+        if (audioUrl == null || audioUrl.trim().isEmpty) {
+          await widget.audioController.clearSource();
 
-      if (audioUrl == null || audioUrl.trim().isEmpty) {
-        await widget.audioController.clearSource();
+          if (!mounted || requestId != _audioRequestId) {
+            return;
+          }
 
-        if (!mounted || requestId != _audioRequestId) {
+          if (showUnavailableMessage) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  '${reciter.name} does not have audio for this Surah yet.',
+                ),
+              ),
+            );
+          }
+
           return;
         }
 
-        if (showUnavailableMessage) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '${reciter.name} does not have audio for this Surah yet.',
-              ),
-            ),
-          );
-        }
-
-        return;
+        await widget.audioController.setSource(
+          surahNumber: widget.surah.number,
+          audioUrl: audioUrl,
+        );
       }
-
-      await widget.audioController.setSource(
-        surahNumber: widget.surah.number,
-        audioUrl: audioUrl,
-      );
 
       if (!mounted || requestId != _audioRequestId) {
         return;
@@ -196,20 +225,43 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         _ayahTimestamps = timestamps;
         _activeAyahNumber = null;
       });
-    } catch (_) {
+
+      if (GlobalQuranAudio.hasAyahTiming(reciter) &&
+          timestamps.isEmpty &&
+          mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${reciter.name} audio loaded, but ayah timing could not be loaded.',
+            ),
+          ),
+        );
+      }
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Quran audio error | '
+        'reciter=${reciter.id} | '
+        'surah=${widget.surah.number} | '
+        'error=$error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+
       if (!mounted || requestId != _audioRequestId) {
         return;
       }
 
       await widget.audioController.clearSource();
 
-      if (mounted && requestId == _audioRequestId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to load reciter audio right now.'),
-          ),
-        );
+      if (!mounted || requestId != _audioRequestId) {
+        return;
       }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Audio error for ${reciter.name}: $error'),
+          duration: const Duration(seconds: 15),
+        ),
+      );
     }
   }
 

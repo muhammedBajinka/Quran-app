@@ -18,6 +18,18 @@ class GlobalQuranAudio {
     'husary': 'https://server13.mp3quran.net/husr/',
     'noreen_muhammad_siddiq': 'https://server16.mp3quran.net/nourin_siddig/Rewayat-Aldori-A-n-Abi-Amr/',
     'mansour_alsalimi': 'https://server14.mp3quran.net/mansor/',
+    'adel_alkalbani': 'https://server8.mp3quran.net/a_klb/',
+    'saud_alshuraim': 'https://server7.mp3quran.net/shur/',
+    'mohammed_jibreel': 'https://server8.mp3quran.net/jbrl/',
+    'mahmoud_ali_albanna': 'https://server8.mp3quran.net/bna/',
+    'sahl_yassin': 'https://server6.mp3quran.net/shl/',
+    'abdul_basit': 'https://server7.mp3quran.net/basit/',
+    'mustafa_ismail': 'https://server8.mp3quran.net/mustafa/',
+    'hasan_saleh':
+        'https://server16.mp3quran.net/h_saleh/Rewayat-Hafs-A-n-Assem/',
+    'omar_alqazabri': 'https://server9.mp3quran.net/omar_warsh/',
+    'salah_bukhatir': 'https://server8.mp3quran.net/bu_khtr/',
+    'ahmad_nuaina': 'https://server11.mp3quran.net/ahmad_nu/',
   };
 
   // MP3Quran read IDs with verified ayah timing data.
@@ -30,6 +42,13 @@ class GlobalQuranAudio {
     'minshawi': 112,
     'husary': 118,
     'mansour_alsalimi': 245,
+    'saud_alshuraim': 31,
+    'sahl_yassin': 32,
+    'abdul_basit': 53,
+    'hasan_saleh': 299,
+    'omar_alqazabri': 80,
+    'salah_bukhatir': 46,
+    'ahmad_nuaina': 9,
     'uqasha_kameeni': 296,
   };
 
