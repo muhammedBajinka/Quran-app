@@ -11,6 +11,7 @@ import '../../models/quran_models.dart';
 import '../../state/audio/quran_audio_controller.dart';
 import '../../state/quran_reading_state.dart';
 import '../../state/quran_settings_state.dart';
+import '../../theme/quran_text_style.dart';
 import '../../widgets/quran/quran_audio_player.dart';
 
 class SurahReaderScreen extends StatefulWidget {
@@ -508,11 +509,11 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
         text: '$text ﴿${ayah.number}﴾ ',
         recognizer: recognizer,
         style: isActive
-            ? const TextStyle(
-                backgroundColor: Color(0xFFE0F2E9),
-                color: Color(0xFF145A3A),
+            ? QuranTextStyle.arabic(
+                backgroundColor: const Color(0xFFE0F2E9),
+                color: const Color(0xFF145A3A),
               )
-            : null,
+            : QuranTextStyle.arabic(),
       );
 
       _ayahTextSpans[ayah.number] = ayahSpan;
@@ -525,10 +526,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
           TextSpan(
             children: [
               TextSpan(text: '${surah.nameTransliteration} · '),
-              TextSpan(
-                text: surah.nameArabic,
-                style: const TextStyle(fontFamily: 'NotoNaskhArabic'),
-              ),
+              TextSpan(text: surah.nameArabic, style: QuranTextStyle.arabic()),
             ],
           ),
           textDirection: TextDirection.ltr,
@@ -555,8 +553,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 Text(
                   _bismillah,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'NotoNaskhArabic',
+                  style: QuranTextStyle.arabic(
                     fontSize: widget.settingsState.arabicTextSize + 2,
                     height: 1.7,
                   ),
@@ -569,8 +566,7 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.justify,
                 softWrap: true,
-                style: TextStyle(
-                  fontFamily: 'NotoNaskhArabic',
+                style: QuranTextStyle.arabic(
                   fontSize: widget.settingsState.arabicTextSize,
                   height: 2.05,
                 ),

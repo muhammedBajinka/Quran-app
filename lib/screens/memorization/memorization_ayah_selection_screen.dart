@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/quran_models.dart';
+import '../../theme/quran_text_style.dart';
 import '../../state/memorization_state.dart';
 import '../../state/progress_state.dart';
 import 'memorization_record_screen.dart';
@@ -229,7 +230,10 @@ class _MemorizationAyahSelectionScreenState
         children: [
           Text(
             widget.surah.nameArabic,
-            style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+            style: QuranTextStyle.arabic(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Text('${widget.surah.ayahCount} ayahs'),

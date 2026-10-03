@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/quran_models.dart';
+import '../../theme/quran_text_style.dart';
 import '../../state/memorization_state.dart';
 import '../../state/progress_state.dart';
 import 'memorization_practice_screen.dart';
@@ -270,7 +271,7 @@ class _MemorizationAyahActionsScreenState
                 children: [
                   Text(
                     widget.surah.nameArabic,
-                    style: const TextStyle(
+                    style: QuranTextStyle.arabic(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/quran_repository.dart';
 import '../../models/quran_models.dart';
+import '../../theme/quran_text_style.dart';
 import '../../state/memorization_state.dart';
 import '../../state/progress_state.dart';
 import 'memorization_ayah_selection_screen.dart';
@@ -793,11 +794,19 @@ class _MemorizationScreenState extends State<MemorizationScreen> {
           surah.nameTransliteration,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(
-          isMemorized
-              ? '$memorizedCount / ${surah.ayahCount} ayahs memorized'
-              : '${surah.nameArabic} · ${surah.ayahCount} ayahs',
-        ),
+        subtitle: isMemorized
+            ? Text('$memorizedCount / ${surah.ayahCount} ayahs memorized')
+            : Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: surah.nameArabic,
+                      style: QuranTextStyle.arabic(),
+                    ),
+                    TextSpan(text: ' · ${surah.ayahCount} ayahs'),
+                  ],
+                ),
+              ),
         trailing: IconButton(
           tooltip: 'Select ayahs',
           icon: Icon(

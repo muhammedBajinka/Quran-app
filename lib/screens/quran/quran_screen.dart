@@ -7,6 +7,7 @@ import '../../state/memorization_state.dart';
 import '../../state/quran_reading_state.dart';
 import '../../state/quran_settings_state.dart';
 import '../../state/audio/quran_audio_controller.dart';
+import '../../theme/quran_text_style.dart';
 import 'surah_reader_screen.dart';
 
 class QuranScreen extends StatefulWidget {
@@ -163,8 +164,7 @@ class _QuranScreenState extends State<QuranScreen> {
                                 ),
                                 TextSpan(
                                   text: surah.nameArabic,
-                                  style: const TextStyle(
-                                    fontFamily: 'NotoNaskhArabic',
+                                  style: QuranTextStyle.arabic(
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
