@@ -1,11 +1,11 @@
 {
-    "name": "quran_app",
-    "short_name": "quran_app",
+    "name": "Quran Life",
+    "short_name": "Quran Life",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B5D3B",
+    "theme_color": "#0B5D3B",
+    "description": "Read the Quran, listen to recitations, memorize, revise, track progress, and access Duas.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
