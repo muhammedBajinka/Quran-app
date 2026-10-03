@@ -41,10 +41,11 @@ class SettingsScreen extends StatelessWidget {
           : '$message\n\n$downloadUrl';
 
       await SharePlus.instance.share(ShareParams(text: shareText));
-    } catch (_) {
+    } catch (error) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Could not open sharing. Please try again.'),
+        SnackBar(
+          content: Text('Share error: $error'),
+          duration: const Duration(seconds: 10),
         ),
       );
     }
@@ -316,16 +317,15 @@ class _FeedbackPageState extends State<_FeedbackPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thank you. Your feedback was sent.')),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Could not send feedback. Check your connection and try again.',
-          ),
+        SnackBar(
+          content: Text('Feedback error: $error'),
+          duration: const Duration(seconds: 10),
         ),
       );
     } finally {

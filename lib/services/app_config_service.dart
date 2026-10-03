@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppRelease {
@@ -75,8 +76,8 @@ class AppConfigService {
           privacyPolicyUrl = configuredPrivacyUrl;
         }
       }
-    } catch (_) {
-      // Keep safe local defaults if remote configuration is unavailable.
+    } catch (error) {
+      debugPrint('APP_CONFIG_ERROR: $error');
     }
 
     try {
@@ -93,8 +94,8 @@ class AppConfigService {
       if (releaseRow != null) {
         currentRelease = AppRelease.fromMap(releaseRow);
       }
-    } catch (_) {
-      // The app remains usable when release information cannot be loaded.
+    } catch (error) {
+      debugPrint('APP_RELEASE_ERROR: $error');
     }
 
     return AppConfig(
