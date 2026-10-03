@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../models/audio/quran_reciter.dart';
@@ -134,8 +135,18 @@ class SettingsScreen extends StatelessWidget {
         _SettingsTile(
           icon: Icons.share_outlined,
           title: 'Share App',
-          subtitle: 'Share the latest app download',
+          subtitle: 'Share Quran Life',
           onTap: () => _shareApp(context),
+        ),
+
+        _SettingsTile(
+          icon: Icons.qr_code_2,
+          title: 'QR Code',
+          subtitle: 'Scan to open Quran Life',
+          onTap: () {
+            Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const _QrCodePage()));
+          },
         ),
 
         _SettingsTile(
@@ -171,6 +182,110 @@ class SettingsScreen extends StatelessWidget {
         const SizedBox(height: 16),
         const _SettingsVersion(),
       ],
+    );
+  }
+}
+
+class _QrCodePage extends StatefulWidget {
+  const _QrCodePage();
+
+  @override
+  State<_QrCodePage> createState() => _QrCodePageState();
+}
+
+class _QrCodePageState extends State<_QrCodePage> {
+  late final Future<String> _urlFuture = _loadUrl();
+
+  Future<String> _loadUrl() async {
+    final config = await AppConfigService().loadConfig();
+    final release = config.currentRelease;
+
+    if (release == null || release.downloadUrl.trim().isEmpty) {
+      throw Exception('Quran Life link is not available.');
+    }
+
+    return release.downloadUrl.trim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Quran Life QR Code'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+      body: FutureBuilder<String>(
+        future: _urlFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError || !snapshot.hasData) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'The Quran Life link is not available right now.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          final url = snapshot.data!;
+
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.menu_book_rounded,
+                    size: 52,
+                    color: Color(0xFF2E7D5B),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Quran Life',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Scan to open Quran Life',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 28),
+                  Card(
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: QrImageView(
+                        data: url,
+                        version: QrVersions.auto,
+                        size: 260,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SelectableText(
+                    url,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF2E7D5B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
