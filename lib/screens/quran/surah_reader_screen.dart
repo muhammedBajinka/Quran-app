@@ -526,7 +526,14 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
           TextSpan(
             children: [
               TextSpan(text: '${surah.nameTransliteration} · '),
-              TextSpan(text: surah.nameArabic, style: QuranTextStyle.arabic()),
+              TextSpan(
+                text: surah.nameArabic,
+                style: QuranTextStyle.arabic(
+                  fontSize: 26,
+                  height: 1.4,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           textDirection: TextDirection.ltr,

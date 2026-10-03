@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Permanent typography for Arabic Quran text.
 ///
 /// Quran editions, reciters, audio sources, and user settings must not
-/// replace this font family. Only properties such as size, colour, and
-/// highlighting should vary.
+/// replace this typography.
 abstract final class QuranTextStyle {
-  static const String fontFamily = 'NotoNaskhArabic';
-
   static TextStyle arabic({
     double? fontSize,
     double? height,
@@ -15,8 +13,7 @@ abstract final class QuranTextStyle {
     Color? backgroundColor,
     FontWeight? fontWeight,
   }) {
-    return TextStyle(
-      fontFamily: fontFamily,
+    return GoogleFonts.amiriQuran(
       fontSize: fontSize,
       height: height,
       color: color,
