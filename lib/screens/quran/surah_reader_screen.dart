@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../data/global_quran_audio.dart';
 import '../../data/quran_reciter_repository.dart';
@@ -522,7 +521,18 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('${surah.nameTransliteration} · ${surah.nameArabic}'),
+        title: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: '${surah.nameTransliteration} · '),
+              TextSpan(
+                text: surah.nameArabic,
+                style: const TextStyle(fontFamily: 'NotoNaskhArabic'),
+              ),
+            ],
+          ),
+          textDirection: TextDirection.ltr,
+        ),
       ),
 
       // Persistent player. It is outside the scrollable Quran text.
@@ -545,7 +555,8 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 Text(
                   _bismillah,
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.notoNaskhArabic(
+                  style: TextStyle(
+                    fontFamily: 'NotoNaskhArabic',
                     fontSize: widget.settingsState.arabicTextSize + 2,
                     height: 1.7,
                   ),
@@ -558,7 +569,8 @@ class _SurahReaderScreenState extends State<SurahReaderScreen> {
                 textDirection: TextDirection.rtl,
                 textAlign: TextAlign.justify,
                 softWrap: true,
-                style: GoogleFonts.notoNaskhArabic(
+                style: TextStyle(
+                  fontFamily: 'NotoNaskhArabic',
                   fontSize: widget.settingsState.arabicTextSize,
                   height: 2.05,
                 ),

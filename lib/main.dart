@@ -98,11 +98,29 @@ class _QuranHomePageState extends State<QuranHomePage> {
         for (final reciter in backendReciters) reciter.id: reciter,
       };
 
+      final reciters = merged.values.toList();
+
+      await _quranSettingsState.enableAllRecitersByDefault(
+        reciters.map((reciter) => reciter.id),
+      );
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
-        _reciters = merged.values.toList();
+        _reciters = reciters;
       });
     } catch (error) {
       debugPrint('Failed to load backend reciters: $error');
+
+      if (!mounted) {
+        return;
+      }
+
+      await _quranSettingsState.enableAllRecitersByDefault(
+        globalQuranReciters.map((reciter) => reciter.id),
+      );
 
       if (!mounted) {
         return;

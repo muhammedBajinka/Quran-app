@@ -152,10 +152,25 @@ class _QuranScreenState extends State<QuranScreen> {
                             foregroundColor: const Color(0xFF2E7D5B),
                             child: Text('${surah.number}'),
                           ),
-                          title: Text(
-                            '${surah.nameTransliteration} · ${surah.nameArabic}',
+                          title: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${surah.nameTransliteration} · ',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                TextSpan(
+                                  text: surah.nameArabic,
+                                  style: const TextStyle(
+                                    fontFamily: 'NotoNaskhArabic',
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                             textDirection: TextDirection.ltr,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           subtitle: Text('${surah.ayahCount} Ayahs'),
                           trailing: SizedBox(

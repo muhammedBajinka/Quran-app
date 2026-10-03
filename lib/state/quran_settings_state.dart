@@ -57,6 +57,22 @@ class QuranSettingsState extends ChangeNotifier {
     await setArabicTextSize(defaultArabicTextSize);
   }
 
+  Future<void> enableAllRecitersByDefault(Iterable<String> reciterIds) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (prefs.containsKey(_enabledReciterIdsKey)) {
+      return;
+    }
+
+    _enabledReciterIds = reciterIds.toSet();
+    notifyListeners();
+
+    await prefs.setStringList(
+      _enabledReciterIdsKey,
+      _enabledReciterIds.toList(),
+    );
+  }
+
   Future<void> setReciterEnabled(String reciterId, bool enabled) async {
     if (enabled) {
       _enabledReciterIds.add(reciterId);
