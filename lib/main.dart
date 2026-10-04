@@ -24,6 +24,16 @@ Future<void> main() async {
     publishableKey: const String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY'),
   );
 
+  final supabase = Supabase.instance.client;
+
+  if (supabase.auth.currentSession == null) {
+    try {
+      await supabase.auth.signInAnonymously();
+    } catch (error) {
+      debugPrint('Anonymous sign-in failed: $error');
+    }
+  }
+
   final progressState = ProgressState();
   await progressState.load();
   await progressState.registerAppOpen();
@@ -136,7 +146,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
     'Quran',
     'Memorization',
     'Progress',
-    'Dua',
+    'Media',
     'Settings',
   ];
 
@@ -238,9 +248,9 @@ class _QuranHomePageState extends State<QuranHomePage> {
                   label: 'Progress',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.headphones_outlined),
-                  selectedIcon: Icon(Icons.headphones),
-                  label: 'Dua',
+                  icon: Icon(Icons.play_circle_outline),
+                  selectedIcon: Icon(Icons.play_circle),
+                  label: 'Media',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.settings_outlined),
