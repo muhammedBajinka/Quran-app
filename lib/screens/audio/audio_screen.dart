@@ -369,6 +369,8 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
   Timer? _holdTimer;
   bool _holdTriggered = false;
+  Offset? _pointerStartPosition;
+  bool _pointerMoved = false;
 
   static const _speeds = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
@@ -553,12 +555,14 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
     }
   }
 
-  void _pointerDown(TapDownDetails details) {
+  void _pointerDown(PointerDownEvent event) {
     _holdTimer?.cancel();
     _holdTriggered = false;
+    _pointerMoved = false;
+    _pointerStartPosition = event.position;
 
     _holdTimer = Timer(const Duration(seconds: 2), () {
-      if (!mounted) {
+      if (!mounted || _pointerMoved) {
         return;
       }
 
@@ -567,19 +571,36 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
     });
   }
 
-  void _pointerUp(TapUpDetails details) {
+  void _pointerMove(PointerMoveEvent event) {
+    final start = _pointerStartPosition;
+
+    if (start == null || _pointerMoved) {
+      return;
+    }
+
+    if ((event.position - start).distance > 12) {
+      _pointerMoved = true;
+      _holdTimer?.cancel();
+    }
+  }
+
+  void _pointerUp(PointerUpEvent event) {
     _holdTimer?.cancel();
 
-    if (!_holdTriggered) {
+    if (!_holdTriggered && !_pointerMoved) {
       _togglePlayback();
     }
 
     _holdTriggered = false;
+    _pointerMoved = false;
+    _pointerStartPosition = null;
   }
 
-  void _pointerCancel() {
+  void _pointerCancel(PointerCancelEvent event) {
     _holdTimer?.cancel();
     _holdTriggered = false;
+    _pointerMoved = false;
+    _pointerStartPosition = null;
   }
 
   Future<void> _showPostMenu() async {
@@ -911,11 +932,12 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           IgnorePointer(child: _buildMedia()),
 
           Positioned.fill(
-            child: GestureDetector(
+            child: Listener(
               behavior: HitTestBehavior.opaque,
-              onTapDown: _pointerDown,
-              onTapUp: _pointerUp,
-              onTapCancel: _pointerCancel,
+              onPointerDown: _pointerDown,
+              onPointerMove: _pointerMove,
+              onPointerUp: _pointerUp,
+              onPointerCancel: _pointerCancel,
               child: const ColoredBox(color: Colors.transparent),
             ),
           ),
