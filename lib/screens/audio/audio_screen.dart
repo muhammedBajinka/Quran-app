@@ -96,6 +96,31 @@ class _AudioScreenState extends State<AudioScreen> {
     super.dispose();
   }
 
+  static const _tabOrder = <_MediaFeedTab>[
+    _MediaFeedTab.other,
+    _MediaFeedTab.sermon,
+    _MediaFeedTab.dua,
+    _MediaFeedTab.recitation,
+    _MediaFeedTab.following,
+    _MediaFeedTab.forYou,
+  ];
+
+  void _selectPreviousTab() {
+    final index = _tabOrder.indexOf(_selectedTab);
+
+    if (index > 0) {
+      _selectTab(_tabOrder[index - 1]);
+    }
+  }
+
+  void _selectNextTab() {
+    final index = _tabOrder.indexOf(_selectedTab);
+
+    if (index >= 0 && index < _tabOrder.length - 1) {
+      _selectTab(_tabOrder[index + 1]);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
@@ -143,6 +168,8 @@ class _AudioScreenState extends State<AudioScreen> {
                 items: items,
                 audioController: widget.audioController,
                 socialRepository: _socialRepository,
+                onSwipeLeft: _selectPreviousTab,
+                onSwipeRight: _selectNextTab,
               );
             },
           ),
@@ -253,12 +280,16 @@ class _UnifiedMediaFeed extends StatefulWidget {
   final List<MediaItem> items;
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
+  final VoidCallback onSwipeLeft;
+  final VoidCallback onSwipeRight;
 
   const _UnifiedMediaFeed({
     super.key,
     required this.items,
     required this.audioController,
     required this.socialRepository,
+    required this.onSwipeLeft,
+    required this.onSwipeRight,
   });
 
   @override
@@ -310,22 +341,34 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 
   @override
   Widget build(BuildContext context) {
-    return PageView.builder(
-      controller: _pageController,
-      scrollDirection: Axis.vertical,
-      itemCount: widget.items.length,
-      onPageChanged: _pageChanged,
-      itemBuilder: (context, index) {
-        final item = widget.items[index];
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
 
-        return _MediaFeedPage(
-          key: ValueKey(item.id),
-          item: item,
-          active: index == _currentIndex,
-          audioController: widget.audioController,
-          socialRepository: widget.socialRepository,
-        );
+        if (velocity < -250) {
+          widget.onSwipeLeft();
+        } else if (velocity > 250) {
+          widget.onSwipeRight();
+        }
       },
+      child: PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        itemCount: widget.items.length,
+        onPageChanged: _pageChanged,
+        itemBuilder: (context, index) {
+          final item = widget.items[index];
+
+          return _MediaFeedPage(
+            key: ValueKey(item.id),
+            item: item,
+            active: index == _currentIndex,
+            audioController: widget.audioController,
+            socialRepository: widget.socialRepository,
+          );
+        },
+      ),
     );
   }
 }

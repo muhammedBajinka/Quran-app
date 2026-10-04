@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/anonymous_install_service.dart';
+
 /// Handles social actions for Media posts.
 ///
 /// This repository keeps Supabase/database code out of the UI.
@@ -12,14 +14,38 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// - reports
 class MediaSocialRepository {
   final SupabaseClient _client;
+  final AnonymousInstallService _installService;
 
-  MediaSocialRepository({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  MediaSocialRepository({
+    SupabaseClient? client,
+    AnonymousInstallService? installService,
+  }) : _client = client ?? Supabase.instance.client,
+       _installService = installService ?? AnonymousInstallService();
 
   /// The currently signed-in Supabase user.
   User? get currentUser => _client.auth.currentUser;
 
   String? get currentUserId => currentUser?.id;
+
+  /// Returns the profile user ID only when this auth user has a real profile.
+  ///
+  /// Anonymous browsing sessions normally have no profiles row, so social
+  /// actions must leave user_id null instead of violating its foreign key.
+  Future<String?> _currentProfileUserId() async {
+    final userId = currentUserId;
+
+    if (userId == null) {
+      return null;
+    }
+
+    final row = await _client
+        .from('profiles')
+        .select('user_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    return row?['user_id']?.toString();
+  }
 
   // ---------------------------------------------------------------------------
   // CREATOR PROFILE
@@ -154,11 +180,13 @@ class MediaSocialRepository {
       return;
     }
 
+    final profileUserId = await _currentProfileUserId();
+
     await _client.from('media_likes').insert({
       'media_id': mediaId,
-      'anonymous_install_id': userId,
+      'anonymous_install_id': await _installService.getInstallId(),
       'auth_user_id': userId,
-      'user_id': userId,
+      'user_id': profileUserId,
     });
   }
 
@@ -222,10 +250,12 @@ class MediaSocialRepository {
       return;
     }
 
+    final profileUserId = await _currentProfileUserId();
+
     await _client.from('media_comments').insert({
       'media_id': mediaId,
-      'anonymous_install_id': userId,
-      'user_id': userId,
+      'anonymous_install_id': await _installService.getInstallId(),
+      'user_id': profileUserId,
       'auth_user_id': userId,
       'display_name': displayName,
       'comment_text': cleanText,
@@ -275,10 +305,12 @@ class MediaSocialRepository {
       return;
     }
 
+    final profileUserId = await _currentProfileUserId();
+
     await _client.from('media_reposts').insert({
       'media_id': mediaId,
-      'anonymous_install_id': userId,
-      'user_id': userId,
+      'anonymous_install_id': await _installService.getInstallId(),
+      'user_id': profileUserId,
       'auth_user_id': userId,
     });
   }
@@ -316,10 +348,12 @@ class MediaSocialRepository {
       return;
     }
 
+    final profileUserId = await _currentProfileUserId();
+
     await _client.from('media_reports').insert({
       'media_id': mediaId,
-      'anonymous_install_id': userId,
-      'user_id': userId,
+      'anonymous_install_id': await _installService.getInstallId(),
+      'user_id': profileUserId,
       'auth_user_id': userId,
       'reason': reason,
       'details': details?.trim().isEmpty == true ? null : details?.trim(),
