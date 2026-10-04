@@ -4,6 +4,7 @@ import '../../data/media_repository.dart';
 import '../../models/audio/media_item.dart';
 import '../../state/audio/media_audio_controller.dart';
 import '../../widgets/audio/media_audio_player.dart';
+import 'media_video_feed_screen.dart';
 import 'media_video_screen.dart';
 
 class AudioScreen extends StatelessWidget {
@@ -37,6 +38,28 @@ class AudioScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 18, 18, 30),
             children: [
+              Card(
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(18),
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.play_circle_outline),
+                  ),
+                  title: const Text(
+                    'Video Feed',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text('Swipe through Islamic videos'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MediaVideoFeedScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 14),
               Card(
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(18),
