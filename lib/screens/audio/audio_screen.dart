@@ -908,12 +908,16 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: _pointerDown,
-            onTapUp: _pointerUp,
-            onTapCancel: _pointerCancel,
-            child: _buildMedia(),
+          IgnorePointer(child: _buildMedia()),
+
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: _pointerDown,
+              onTapUp: _pointerUp,
+              onTapCancel: _pointerCancel,
+              child: const ColoredBox(color: Colors.transparent),
+            ),
           ),
 
           if (widget.item.hasVideo && _videoInitialized && _showPlayButton)
