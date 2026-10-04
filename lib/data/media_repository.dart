@@ -22,6 +22,7 @@ class MediaRepository {
     creator_id,
     pinned,
     pin_order,
+    downloads_enabled,
     created_at
   ''';
 
@@ -116,6 +117,7 @@ class MediaRepository {
       createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
       pinned: row['pinned'] as bool? ?? false,
       pinOrder: row['pin_order'] as int?,
+      downloadsEnabled: row['downloads_enabled'] as bool? ?? false,
     );
   }
 

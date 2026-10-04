@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
@@ -300,6 +301,7 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   late final PageController _pageController;
 
   int _currentIndex = 0;
+  double _horizontalDragDistance = 0;
 
   @override
   void initState() {
@@ -343,14 +345,29 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (_) {
+        _horizontalDragDistance = 0;
+      },
+      onHorizontalDragUpdate: (details) {
+        _horizontalDragDistance += details.primaryDelta ?? 0;
+      },
       onHorizontalDragEnd: (details) {
         final velocity = details.primaryVelocity ?? 0;
+        final distance = _horizontalDragDistance;
 
-        if (velocity < -250) {
+        _horizontalDragDistance = 0;
+
+        final swipedLeft = distance < -60 || velocity < -300;
+        final swipedRight = distance > 60 || velocity > 300;
+
+        if (swipedLeft) {
           widget.onSwipeLeft();
-        } else if (velocity > 250) {
+        } else if (swipedRight) {
           widget.onSwipeRight();
         }
+      },
+      onHorizontalDragCancel: () {
+        _horizontalDragDistance = 0;
       },
       child: PageView.builder(
         controller: _pageController,
@@ -597,6 +614,29 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
     _togglePlayback();
   }
 
+  Future<void> _downloadMedia() async {
+    final mediaUrl = widget.item.videoUrl ?? widget.item.audioUrl;
+
+    if (mediaUrl == null || mediaUrl.trim().isEmpty) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This post does not have a downloadable media file.'),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Download is allowed. Device saving is being connected.'),
+      ),
+    );
+  }
+
   Future<void> _showPostMenu() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -619,14 +659,18 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
                 onTap: () {
                   Navigator.pop(sheetContext);
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Download will be connected with '
-                        'the secure media storage step.',
+                  if (!widget.item.downloadsEnabled) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Downloads are disabled by this creator.',
+                        ),
                       ),
-                    ),
-                  );
+                    );
+                    return;
+                  }
+
+                  _downloadMedia();
                 },
               ),
               ListTile(
@@ -1027,6 +1071,40 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
     return _AudioArtwork(item: widget.item);
   }
 
+  Future<void> _sharePost() async {
+    final item = widget.item;
+    final mediaUrl = item.videoUrl ?? item.audioUrl;
+
+    if (mediaUrl == null || mediaUrl.trim().isEmpty) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This post does not have a shareable media link.'),
+        ),
+      );
+      return;
+    }
+
+    final creatorName = _creator?.visibleName ?? item.speaker ?? 'Quran Life';
+
+    final shareText = [item.title, 'By $creatorName', mediaUrl].join('\n');
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: shareText, subject: item.title),
+      );
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open sharing. Please try again.'),
+        ),
+      );
+    }
+  }
+
   Widget _buildActionRail() {
     final creatorId = widget.item.creatorId;
 
@@ -1096,16 +1174,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         _ActionButton(
           icon: Icons.share_outlined,
           label: 'Share',
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'System sharing will be connected '
-                  'with the Media link step.',
-                ),
-              ),
-            );
-          },
+          onPressed: _sharePost,
         ),
 
         _ActionButton(

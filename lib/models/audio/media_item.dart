@@ -16,6 +16,7 @@ class MediaItem {
 
   final bool pinned;
   final int? pinOrder;
+  final bool downloadsEnabled;
 
   const MediaItem({
     required this.id,
@@ -30,6 +31,7 @@ class MediaItem {
     this.createdAt,
     this.pinned = false,
     this.pinOrder,
+    this.downloadsEnabled = false,
   });
 
   bool get hasAudio => audioUrl != null && audioUrl!.trim().isNotEmpty;
