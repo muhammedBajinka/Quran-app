@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 import '../models/audio/quran_reciter.dart';
 
@@ -92,18 +93,14 @@ class GlobalQuranAudio {
       'read': readId.toString(),
     });
 
-    final client = HttpClient();
-
     try {
-      final request = await client.getUrl(uri);
-      final response = await request.close();
+      final response = await http.get(uri);
 
-      if (response.statusCode != HttpStatus.ok) {
+      if (response.statusCode != 200) {
         return const [];
       }
 
-      final body = await response.transform(utf8.decoder).join();
-      final decoded = jsonDecode(body);
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (decoded is! List) {
         return const [];
@@ -137,8 +134,6 @@ class GlobalQuranAudio {
       return timestamps;
     } catch (_) {
       return const [];
-    } finally {
-      client.close(force: true);
     }
   }
 }
