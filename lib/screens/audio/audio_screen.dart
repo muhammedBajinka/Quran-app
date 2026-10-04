@@ -367,11 +367,6 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
   String? _videoError;
 
-  Timer? _holdTimer;
-  bool _holdTriggered = false;
-  Offset? _pointerStartPosition;
-  bool _pointerMoved = false;
-
   static const _speeds = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
   @override
@@ -555,52 +550,8 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
     }
   }
 
-  void _pointerDown(PointerDownEvent event) {
-    _holdTimer?.cancel();
-    _holdTriggered = false;
-    _pointerMoved = false;
-    _pointerStartPosition = event.position;
-
-    _holdTimer = Timer(const Duration(seconds: 2), () {
-      if (!mounted || _pointerMoved) {
-        return;
-      }
-
-      _holdTriggered = true;
-      _showPostMenu();
-    });
-  }
-
-  void _pointerMove(PointerMoveEvent event) {
-    final start = _pointerStartPosition;
-
-    if (start == null || _pointerMoved) {
-      return;
-    }
-
-    if ((event.position - start).distance > 12) {
-      _pointerMoved = true;
-      _holdTimer?.cancel();
-    }
-  }
-
-  void _pointerUp(PointerUpEvent event) {
-    _holdTimer?.cancel();
-
-    if (!_holdTriggered && !_pointerMoved) {
-      _togglePlayback();
-    }
-
-    _holdTriggered = false;
-    _pointerMoved = false;
-    _pointerStartPosition = null;
-  }
-
-  void _pointerCancel(PointerCancelEvent event) {
-    _holdTimer?.cancel();
-    _holdTriggered = false;
-    _pointerMoved = false;
-    _pointerStartPosition = null;
+  void _tapMedia() {
+    _togglePlayback();
   }
 
   Future<void> _showPostMenu() async {
@@ -910,8 +861,6 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
   @override
   void dispose() {
-    _holdTimer?.cancel();
-
     final controller = _videoController;
 
     if (controller != null) {
@@ -932,12 +881,9 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           IgnorePointer(child: _buildMedia()),
 
           Positioned.fill(
-            child: Listener(
+            child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onPointerDown: _pointerDown,
-              onPointerMove: _pointerMove,
-              onPointerUp: _pointerUp,
-              onPointerCancel: _pointerCancel,
+              onTap: _tapMedia,
               child: const ColoredBox(color: Colors.transparent),
             ),
           ),
@@ -1117,6 +1063,12 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               ),
             );
           },
+        ),
+
+        _ActionButton(
+          icon: Icons.more_horiz_rounded,
+          label: 'More',
+          onPressed: _showPostMenu,
         ),
       ],
     );
