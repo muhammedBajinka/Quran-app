@@ -121,6 +121,26 @@ class MediaSocialRepository {
         .eq('following_id', creatorId);
   }
 
+  /// Returns the number of people following a creator.
+  Future<int> getFollowerCount(String creatorId) async {
+    final rows = await _client
+        .from('follows')
+        .select('follower_id')
+        .eq('following_id', creatorId);
+
+    return (rows as List<dynamic>).length;
+  }
+
+  /// Returns the number of creators this profile follows.
+  Future<int> getFollowingCount(String creatorId) async {
+    final rows = await _client
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', creatorId);
+
+    return (rows as List<dynamic>).length;
+  }
+
   /// Returns the IDs of creators followed by the current user.
   Future<List<String>> getFollowingCreatorIds() async {
     final userId = currentUserId;
@@ -160,6 +180,35 @@ class MediaSocialRepository {
         .maybeSingle();
 
     return row != null;
+  }
+
+  /// Records a qualified Media view.
+  Future<void> recordView(
+    String mediaId, {
+    int watchSeconds = 3,
+    bool completed = false,
+  }) async {
+    final authUserId = currentUserId;
+    final profileUserId = await _currentProfileUserId();
+
+    await _client.from('media_views').insert({
+      'media_id': mediaId,
+      'anonymous_install_id': await _installService.getInstallId(),
+      'auth_user_id': authUserId,
+      'user_id': profileUserId,
+      'watch_seconds': watchSeconds,
+      'completed': completed,
+    });
+  }
+
+  /// Returns the number of views for a Media post.
+  Future<int> getViewCount(String mediaId) async {
+    final rows = await _client
+        .from('media_views')
+        .select('id')
+        .eq('media_id', mediaId);
+
+    return (rows as List<dynamic>).length;
   }
 
   /// Returns the number of likes for a Media post.

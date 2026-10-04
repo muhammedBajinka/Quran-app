@@ -94,6 +94,17 @@ class MediaRepository {
     return getAllPublished(mediaType: 'audio', shuffle: true);
   }
 
+  Future<List<MediaItem>> getCreatorPosts(String creatorId) async {
+    final rows = await _client
+        .from('media_content')
+        .select(_columns)
+        .eq('published', true)
+        .eq('creator_id', creatorId)
+        .order('created_at', ascending: false);
+
+    return _mapRows(rows);
+  }
+
   List<MediaItem> _mapRows(dynamic rows) {
     return (rows as List<dynamic>)
         .map((row) => _mapRow(Map<String, dynamic>.from(row as Map)))

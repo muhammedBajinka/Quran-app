@@ -1,8 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../profile/creator_profile_screen.dart';
 
 import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
@@ -21,6 +21,7 @@ class AudioScreen extends StatefulWidget {
 }
 
 class _AudioScreenState extends State<AudioScreen> {
+  MediaItem? _currentVisibleItem;
   final MediaRepository _repository = MediaRepository();
   final MediaSocialRepository _socialRepository = MediaSocialRepository();
 
@@ -115,11 +116,43 @@ class _AudioScreenState extends State<AudioScreen> {
   }
 
   void _selectNextTab() {
+    if (_selectedTab == _MediaFeedTab.forYou) {
+      _openCurrentCreatorProfile();
+      return;
+    }
+
     final index = _tabOrder.indexOf(_selectedTab);
 
     if (index >= 0 && index < _tabOrder.length - 1) {
       _selectTab(_tabOrder[index + 1]);
     }
+  }
+
+  void _currentItemChanged(MediaItem item) {
+    _currentVisibleItem = item;
+  }
+
+  void _openCurrentCreatorProfile() {
+    final creatorId = _currentVisibleItem?.creatorId;
+
+    if (creatorId == null || creatorId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This post does not have a creator profile.'),
+        ),
+      );
+      return;
+    }
+
+    _openCreatorProfile(creatorId);
+  }
+
+  void _openCreatorProfile(String creatorId) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CreatorProfileScreen(creatorId: creatorId),
+      ),
+    );
   }
 
   @override
@@ -171,6 +204,8 @@ class _AudioScreenState extends State<AudioScreen> {
                 socialRepository: _socialRepository,
                 onSwipeLeft: _selectPreviousTab,
                 onSwipeRight: _selectNextTab,
+                onCurrentItemChanged: _currentItemChanged,
+                onCreatorPressed: _openCreatorProfile,
               );
             },
           ),
@@ -283,6 +318,8 @@ class _UnifiedMediaFeed extends StatefulWidget {
   final MediaSocialRepository socialRepository;
   final VoidCallback onSwipeLeft;
   final VoidCallback onSwipeRight;
+  final ValueChanged<MediaItem> onCurrentItemChanged;
+  final ValueChanged<String> onCreatorPressed;
 
   const _UnifiedMediaFeed({
     super.key,
@@ -291,6 +328,8 @@ class _UnifiedMediaFeed extends StatefulWidget {
     required this.socialRepository,
     required this.onSwipeLeft,
     required this.onSwipeRight,
+    required this.onCurrentItemChanged,
+    required this.onCreatorPressed,
   });
 
   @override
@@ -314,8 +353,20 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
         return;
       }
 
-      _activateItem(widget.items.first);
+      final item = widget.items.first;
+
+      widget.onCurrentItemChanged(item);
+      _recordView(item);
+      _activateItem(item);
     });
+  }
+
+  Future<void> _recordView(MediaItem item) async {
+    try {
+      await widget.socialRepository.recordView(item.id, watchSeconds: 0);
+    } catch (_) {
+      // A view failure must never interrupt media playback.
+    }
   }
 
   Future<void> _activateItem(MediaItem item) async {
@@ -327,11 +378,15 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   }
 
   void _pageChanged(int index) {
+    final item = widget.items[index];
+
     setState(() {
       _currentIndex = index;
     });
 
-    _activateItem(widget.items[index]);
+    widget.onCurrentItemChanged(item);
+    _recordView(item);
+    _activateItem(item);
   }
 
   @override
@@ -383,6 +438,7 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
             active: index == _currentIndex,
             audioController: widget.audioController,
             socialRepository: widget.socialRepository,
+            onCreatorPressed: widget.onCreatorPressed,
           );
         },
       ),
@@ -395,6 +451,7 @@ class _MediaFeedPage extends StatefulWidget {
   final bool active;
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
+  final ValueChanged<String> onCreatorPressed;
 
   const _MediaFeedPage({
     super.key,
@@ -402,6 +459,7 @@ class _MediaFeedPage extends StatefulWidget {
     required this.active,
     required this.audioController,
     required this.socialRepository,
+    required this.onCreatorPressed,
   });
 
   @override
@@ -1118,19 +1176,25 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
-            CircleAvatar(
-              radius: 24,
-              backgroundColor: Colors.white24,
-              backgroundImage:
-                  _creator?.avatarUrl != null &&
-                      _creator!.avatarUrl!.trim().isNotEmpty
-                  ? NetworkImage(_creator!.avatarUrl!)
-                  : null,
-              child:
-                  _creator?.avatarUrl == null ||
-                      _creator!.avatarUrl!.trim().isEmpty
-                  ? const Icon(Icons.person, color: Colors.white)
-                  : null,
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: creatorId == null
+                  ? null
+                  : () => widget.onCreatorPressed(creatorId),
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: Colors.white24,
+                backgroundImage:
+                    _creator?.avatarUrl != null &&
+                        _creator!.avatarUrl!.trim().isNotEmpty
+                    ? NetworkImage(_creator!.avatarUrl!)
+                    : null,
+                child:
+                    _creator?.avatarUrl == null ||
+                        _creator!.avatarUrl!.trim().isEmpty
+                    ? const Icon(Icons.person, color: Colors.white)
+                    : null,
+              ),
             ),
             if (!ownPost && creatorId != null && !_following)
               Positioned(
