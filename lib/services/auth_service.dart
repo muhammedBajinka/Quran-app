@@ -15,9 +15,12 @@ class AuthService {
   bool get isAnonymous => currentUser?.isAnonymous ?? false;
 
   Future<bool> continueWithGoogle() async {
-    return _supabase.auth.linkIdentity(
-      OAuthProvider.google,
-      redirectTo: googleRedirect,
-    );
+    return _supabase.auth
+        .linkIdentity(
+          OAuthProvider.google,
+          redirectTo: googleRedirect,
+          authScreenLaunchMode: LaunchMode.externalApplication,
+        )
+        .timeout(const Duration(seconds: 15));
   }
 }
