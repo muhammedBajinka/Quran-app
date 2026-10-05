@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/anonymous_install_service.dart';
@@ -50,6 +52,30 @@ class MediaSocialRepository {
   // ---------------------------------------------------------------------------
   // CREATOR PROFILE
   // ---------------------------------------------------------------------------
+
+  /// Creates the signed-in user's creator profile if it does not exist.
+  ///
+  /// New accounts start without a username. The creator chooses their public
+  /// username later from Edit profile.
+  Future<void> ensureCurrentUserProfile() async {
+    final user = currentUser;
+
+    if (user == null || user.isAnonymous) {
+      return;
+    }
+
+    final existing = await _client
+        .from('profiles')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (existing != null) {
+      return;
+    }
+
+    await _client.from('profiles').insert({'user_id': user.id});
+  }
 
   /// Loads the public profile used beside a Media post.
   Future<CreatorProfile?> getCreatorProfile(String creatorId) async {
@@ -446,12 +472,127 @@ class MediaSocialRepository {
       'status': 'pending',
     });
   }
+
+  /// Uploads a new avatar for the signed-in creator and stores its public URL.
+  Future<String> uploadCurrentUserAvatar({
+    required Uint8List bytes,
+    required String contentType,
+  }) async {
+    final user = currentUser;
+
+    if (user == null || user.isAnonymous) {
+      throw StateError('A signed-in account is required to upload an avatar.');
+    }
+
+    if (bytes.isEmpty) {
+      throw const ProfileValidationException('The selected image is empty.');
+    }
+
+    if (bytes.length > 5 * 1024 * 1024) {
+      throw const ProfileValidationException(
+        'Profile photo must be 5 MB or smaller.',
+      );
+    }
+
+    if (contentType != 'image/jpeg' &&
+        contentType != 'image/png' &&
+        contentType != 'image/webp') {
+      throw const ProfileValidationException(
+        'Choose a JPEG, PNG, or WebP image.',
+      );
+    }
+
+    await ensureCurrentUserProfile();
+
+    final storage = _client.storage.from('profile-avatars');
+    final objectPath = '${user.id}/avatar';
+
+    await storage.uploadBinary(
+      objectPath,
+      bytes,
+      fileOptions: FileOptions(
+        contentType: contentType,
+        upsert: true,
+        cacheControl: '3600',
+      ),
+    );
+
+    final publicUrl = storage.getPublicUrl(objectPath);
+    final avatarUrl = '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+
+    await _client
+        .from('profiles')
+        .update({'avatar_url': avatarUrl})
+        .eq('user_id', user.id);
+
+    return avatarUrl;
+  }
+
+  /// Updates the signed-in creator's editable public profile fields.
+  ///
+  /// Usernames are normalized to lowercase before being saved. Database
+  /// constraints remain the final authority for format and uniqueness.
+  Future<void> updateCurrentUserProfile({
+    required String username,
+    required String displayName,
+    required String bio,
+  }) async {
+    final user = currentUser;
+
+    if (user == null || user.isAnonymous) {
+      throw StateError('A signed-in account is required to edit a profile.');
+    }
+
+    final normalizedUsername = username.trim().toLowerCase();
+    final normalizedDisplayName = displayName.trim();
+    final normalizedBio = bio.trim();
+
+    if (normalizedUsername.length < 3 ||
+        normalizedUsername.length > 30 ||
+        !RegExp(r'^[a-z0-9_]+$').hasMatch(normalizedUsername)) {
+      throw const ProfileValidationException(
+        'Username must be 3–30 characters using only lowercase letters, numbers, and underscores.',
+      );
+    }
+
+    await ensureCurrentUserProfile();
+
+    try {
+      await _client
+          .from('profiles')
+          .update({
+            'username': normalizedUsername,
+            'display_name': normalizedDisplayName.isEmpty
+                ? null
+                : normalizedDisplayName,
+            'bio': normalizedBio.isEmpty ? null : normalizedBio,
+          })
+          .eq('user_id', user.id);
+    } on PostgrestException catch (error) {
+      if (error.code == '23505') {
+        throw const ProfileValidationException(
+          'That username is already taken.',
+        );
+      }
+
+      rethrow;
+    }
+  }
+}
+
+class ProfileValidationException implements Exception {
+  final String message;
+
+  const ProfileValidationException(this.message);
+
+  @override
+  String toString() => message;
 }
 
 /// Public information shown for the creator of a Media post.
 class CreatorProfile {
   final String userId;
-  final String username;
+  final String? username;
   final String? displayName;
   final String? bio;
   final String? avatarUrl;
@@ -460,7 +601,7 @@ class CreatorProfile {
 
   const CreatorProfile({
     required this.userId,
-    required this.username,
+    this.username,
     this.displayName,
     this.bio,
     this.avatarUrl,
@@ -475,13 +616,19 @@ class CreatorProfile {
       return name;
     }
 
-    return username;
+    final handle = username?.trim();
+
+    if (handle != null && handle.isNotEmpty) {
+      return handle;
+    }
+
+    return 'New creator';
   }
 
   factory CreatorProfile.fromMap(Map<String, dynamic> row) {
     return CreatorProfile(
       userId: row['user_id'] as String,
-      username: row['username'] as String? ?? 'creator',
+      username: row['username'] as String?,
       displayName: row['display_name'] as String?,
       bio: row['bio'] as String?,
       avatarUrl: row['avatar_url'] as String?,

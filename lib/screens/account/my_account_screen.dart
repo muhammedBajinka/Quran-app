@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/media_social_repository.dart';
 import '../../services/auth_service.dart';
 import '../profile/creator_profile_screen.dart';
 
@@ -15,9 +16,12 @@ class MyAccountScreen extends StatefulWidget {
 
 class _MyAccountScreenState extends State<MyAccountScreen> {
   final AuthService _authService = AuthService();
+  final MediaSocialRepository _socialRepository = MediaSocialRepository();
 
   StreamSubscription<AuthState>? _authSubscription;
   bool _googleLoading = false;
+  bool _profileReady = false;
+  Object? _profileError;
 
   bool get _hasAccount {
     final user = _authService.currentUser;
@@ -27,19 +31,57 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   @override
   void initState() {
     super.initState();
+
+    if (_hasAccount) {
+      _prepareProfile();
+    }
+
     _authSubscription = _authService.supabase.auth.onAuthStateChange.listen((
       data,
     ) {
       if (!mounted) return;
 
       if (data.event == AuthChangeEvent.signedIn ||
-          data.event == AuthChangeEvent.userUpdated ||
-          data.event == AuthChangeEvent.tokenRefreshed) {
+          data.event == AuthChangeEvent.userUpdated) {
+        setState(() {
+          _googleLoading = false;
+          _profileReady = false;
+          _profileError = null;
+        });
+
+        _prepareProfile();
+      } else if (data.event == AuthChangeEvent.tokenRefreshed) {
         setState(() {
           _googleLoading = false;
         });
       }
     });
+  }
+
+  Future<void> _prepareProfile() async {
+    final user = _authService.currentUser;
+
+    if (user == null || user.isAnonymous) {
+      return;
+    }
+
+    try {
+      await _socialRepository.ensureCurrentUserProfile();
+
+      if (!mounted) return;
+
+      setState(() {
+        _profileReady = true;
+        _profileError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _profileReady = false;
+        _profileError = error;
+      });
+    }
   }
 
   @override
@@ -96,6 +138,54 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     final user = _authService.currentUser;
 
     if (_hasAccount && user != null) {
+      if (_profileError != null) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            title: const Text('My Account'),
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.cloud_off_outlined,
+                    size: 48,
+                    color: Colors.black45,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Could not prepare your profile.',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () {
+                      setState(() {
+                        _profileError = null;
+                      });
+                      _prepareProfile();
+                    },
+                    child: const Text('Try again'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+
+      if (!_profileReady) {
+        return const Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(child: CircularProgressIndicator()),
+        );
+      }
+
       return CreatorProfileScreen(creatorId: user.id);
     }
 

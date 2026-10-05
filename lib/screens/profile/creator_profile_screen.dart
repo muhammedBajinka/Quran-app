@@ -5,6 +5,7 @@ import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
 import '../../services/media_worker_service.dart';
 import 'creator_settings_screen.dart';
+import 'edit_profile_screen.dart';
 
 class CreatorProfileScreen extends StatefulWidget {
   final String creatorId;
@@ -193,10 +194,22 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     }
   }
 
-  void _openEditProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile editing is being connected next.')),
+  Future<void> _openEditProfile() async {
+    final profile = _profile;
+
+    if (profile == null || !_isOwnProfile) {
+      return;
+    }
+
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => EditProfileScreen(profile: profile),
+      ),
     );
+
+    if (updated == true && mounted) {
+      await _load();
+    }
   }
 
   @override
@@ -525,11 +538,19 @@ class _ProfileHeader extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: 3),
-          Text(
-            '@${profile.username}',
-            style: const TextStyle(color: Colors.black54, fontSize: 14),
-          ),
+          if (profile.username?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 3),
+            Text(
+              '@${profile.username!.trim()}',
+              style: const TextStyle(color: Colors.black54, fontSize: 14),
+            ),
+          ] else if (isOwnProfile) ...[
+            const SizedBox(height: 3),
+            const Text(
+              'Choose a username',
+              style: TextStyle(color: Colors.black45, fontSize: 14),
+            ),
+          ],
           if (profile.bio?.trim().isNotEmpty == true) ...[
             const SizedBox(height: 12),
             Text(
