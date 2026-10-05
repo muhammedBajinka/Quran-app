@@ -27,7 +27,6 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
   @override
   void initState() {
     super.initState();
-
     _authSubscription = _authService.supabase.auth.onAuthStateChange.listen((
       data,
     ) {
@@ -59,12 +58,22 @@ class _MyAccountScreenState extends State<MyAccountScreen> {
     try {
       final launched = await _authService.continueWithGoogle();
 
-      if (!launched && mounted) {
+      if (!launched) {
+        await _authService.ensureGuestSession();
+
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not start Google sign-in.')),
         );
       }
     } catch (error) {
+      try {
+        await _authService.ensureGuestSession();
+      } catch (_) {
+        // Startup will retry anonymous authentication on the next app launch.
+      }
+
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
