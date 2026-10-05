@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -27,6 +30,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
 
   bool _googleLoading = false;
+  StreamSubscription<AuthState>? _authSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _authSubscription = _authService.supabase.auth.onAuthStateChange.listen((
+      data,
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      if (data.event == AuthChangeEvent.signedIn ||
+          data.event == AuthChangeEvent.userUpdated ||
+          data.event == AuthChangeEvent.tokenRefreshed) {
+        setState(() {
+          _googleLoading = false;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
 
   Future<void> _continueWithGoogle() async {
     if (_googleLoading) {
@@ -150,7 +181,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.login),
+                    : const _GoogleLogo(),
                 label: Text(
                   _googleLoading ? 'Connecting...' : 'Continue with Google',
                 ),
@@ -830,6 +861,70 @@ class _VersionText extends StatelessWidget {
       },
     );
   }
+}
+
+class _GoogleLogo extends StatelessWidget {
+  const _GoogleLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  const _GoogleLogoPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width * 0.34;
+    final stroke = size.width * 0.18;
+
+    final segments = <(Color, double, double)>[
+      (const Color(0xFF4285F4), -0.78, 1.45),
+      (const Color(0xFF34A853), 0.67, 1.45),
+      (const Color(0xFFFBBC05), 2.12, 1.45),
+      (const Color(0xFFEA4335), 3.57, 1.45),
+    ];
+
+    for (final segment in segments) {
+      final paint = Paint()
+        ..color = segment.$1
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = stroke
+        ..strokeCap = StrokeCap.butt;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        segment.$2,
+        segment.$3,
+        false,
+        paint,
+      );
+    }
+
+    final bluePaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRect(
+      Rect.fromLTWH(
+        center.dx,
+        center.dy - stroke / 2,
+        radius + stroke * 0.9,
+        stroke,
+      ),
+      bluePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _SectionTitle extends StatelessWidget {
