@@ -1,11 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../models/audio/quran_reciter.dart';
+import '../account/my_account_screen.dart';
 import '../../services/app_config_service.dart';
 import '../../services/app_info_service.dart';
 import '../../services/auth_service.dart';
@@ -28,73 +26,6 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
-
-  bool _googleLoading = false;
-  StreamSubscription<AuthState>? _authSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _authSubscription = _authService.supabase.auth.onAuthStateChange.listen((
-      data,
-    ) {
-      if (!mounted) {
-        return;
-      }
-
-      if (data.event == AuthChangeEvent.signedIn ||
-          data.event == AuthChangeEvent.userUpdated ||
-          data.event == AuthChangeEvent.tokenRefreshed) {
-        setState(() {
-          _googleLoading = false;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _authSubscription?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _continueWithGoogle() async {
-    if (_googleLoading) {
-      return;
-    }
-
-    setState(() {
-      _googleLoading = true;
-    });
-
-    try {
-      final launched = await _authService.continueWithGoogle();
-
-      if (!launched && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not start Google sign-in.')),
-        );
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Google sign-in failed: $error'),
-          duration: const Duration(seconds: 8),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _googleLoading = false;
-        });
-      }
-    }
-  }
 
   Future<void> _shareApp(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -132,63 +63,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildAccountCard() {
     final user = _authService.currentUser;
-    final anonymous = _authService.isAnonymous;
-
-    if (!anonymous && user != null) {
-      final email = user.email?.trim();
-
-      return Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: ListTile(
-          leading: const CircleAvatar(child: Icon(Icons.person)),
-          title: const Text(
-            'Google account',
-            style: TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(email == null || email.isEmpty ? 'Signed in' : email),
-          trailing: const Icon(Icons.verified, color: Color(0xFF2E7D5B)),
-        ),
-      );
-    }
+    final hasAccount = user != null && !user.isAnonymous;
+    final email = user?.email?.trim();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.account_circle_outlined, color: Color(0xFF2E7D5B)),
-                SizedBox(width: 12),
-                Text(
-                  'Your account',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            const Text('Save your Quran Life account with Google.'),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: _googleLoading ? null : _continueWithGoogle,
-                icon: _googleLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const _GoogleLogo(),
-                label: Text(
-                  _googleLoading ? 'Connecting...' : 'Continue with Google',
-                ),
-              ),
-            ),
-          ],
+      child: ListTile(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const MyAccountScreen()),
+          );
+        },
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFFE7F1EC),
+          child: Icon(
+            hasAccount ? Icons.person : Icons.person_outline,
+            color: const Color(0xFF2E7D5B),
+          ),
         ),
+        title: const Text(
+          'My Account',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          hasAccount
+              ? (email == null || email.isEmpty
+                    ? 'Profile, posts and account settings'
+                    : email)
+              : 'Sign in, create your profile and sync your account',
+        ),
+        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
@@ -861,70 +765,6 @@ class _VersionText extends StatelessWidget {
       },
     );
   }
-}
-
-class _GoogleLogo extends StatelessWidget {
-  const _GoogleLogo();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 20,
-      height: 20,
-      child: CustomPaint(painter: _GoogleLogoPainter()),
-    );
-  }
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  const _GoogleLogoPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width * 0.34;
-    final stroke = size.width * 0.18;
-
-    final segments = <(Color, double, double)>[
-      (const Color(0xFF4285F4), -0.78, 1.45),
-      (const Color(0xFF34A853), 0.67, 1.45),
-      (const Color(0xFFFBBC05), 2.12, 1.45),
-      (const Color(0xFFEA4335), 3.57, 1.45),
-    ];
-
-    for (final segment in segments) {
-      final paint = Paint()
-        ..color = segment.$1
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.butt;
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        segment.$2,
-        segment.$3,
-        false,
-        paint,
-      );
-    }
-
-    final bluePaint = Paint()
-      ..color = const Color(0xFF4285F4)
-      ..style = PaintingStyle.fill;
-
-    canvas.drawRect(
-      Rect.fromLTWH(
-        center.dx,
-        center.dy - stroke / 2,
-        radius + stroke * 0.9,
-        stroke,
-      ),
-      bluePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _SectionTitle extends StatelessWidget {

@@ -141,6 +141,25 @@ class MediaRepository {
     return _mapRows(rows);
   }
 
+  Future<List<MediaItem>> getPublishedMediaByIds(List<String> mediaIds) async {
+    if (mediaIds.isEmpty) {
+      return const [];
+    }
+
+    final rows = await _client
+        .from('media_content')
+        .select(_columns)
+        .eq('published', true)
+        .inFilter('id', mediaIds);
+
+    final items = _mapRows(rows);
+    final itemsById = <String, MediaItem>{
+      for (final item in items) item.id: item,
+    };
+
+    return mediaIds.map((id) => itemsById[id]).whereType<MediaItem>().toList();
+  }
+
   Future<List<MediaItem>> getCreatorPosts(String creatorId) async {
     final rows = await _client
         .from('media_content')

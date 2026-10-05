@@ -56,7 +56,7 @@ class MediaSocialRepository {
     final row = await _client
         .from('profiles')
         .select(
-          'user_id, username, display_name, bio, avatar_url, is_suspended',
+          'user_id, username, display_name, bio, avatar_url, is_suspended, is_verified',
         )
         .eq('user_id', creatorId)
         .maybeSingle();
@@ -163,6 +163,20 @@ class MediaSocialRepository {
   // ---------------------------------------------------------------------------
   // LIKES
   // ---------------------------------------------------------------------------
+
+  /// Returns media IDs liked by this profile, newest first.
+  Future<List<String>> getLikedMediaIds(String userId) async {
+    final rows = await _client
+        .from('media_likes')
+        .select('media_id, created_at')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    return (rows as List<dynamic>)
+        .map((row) => row['media_id']?.toString())
+        .whereType<String>()
+        .toList();
+  }
 
   /// Returns whether the current user has liked a Media post.
   Future<bool> hasLiked(String mediaId) async {
@@ -330,6 +344,20 @@ class MediaSocialRepository {
   // REPOSTS
   // ---------------------------------------------------------------------------
 
+  /// Returns media IDs reposted by this profile, newest first.
+  Future<List<String>> getRepostedMediaIds(String userId) async {
+    final rows = await _client
+        .from('media_reposts')
+        .select('media_id, created_at')
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    return (rows as List<dynamic>)
+        .map((row) => row['media_id']?.toString())
+        .whereType<String>()
+        .toList();
+  }
+
   Future<bool> hasReposted(String mediaId) async {
     final userId = currentUserId;
 
@@ -428,6 +456,7 @@ class CreatorProfile {
   final String? bio;
   final String? avatarUrl;
   final bool isSuspended;
+  final bool isVerified;
 
   const CreatorProfile({
     required this.userId,
@@ -436,6 +465,7 @@ class CreatorProfile {
     this.bio,
     this.avatarUrl,
     required this.isSuspended,
+    required this.isVerified,
   });
 
   String get visibleName {
@@ -456,6 +486,7 @@ class CreatorProfile {
       bio: row['bio'] as String?,
       avatarUrl: row['avatar_url'] as String?,
       isSuspended: row['is_suspended'] as bool? ?? false,
+      isVerified: row['is_verified'] as bool? ?? false,
     );
   }
 }

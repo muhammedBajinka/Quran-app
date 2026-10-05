@@ -4,6 +4,7 @@ import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
 import '../../services/media_worker_service.dart';
+import 'creator_settings_screen.dart';
 
 class CreatorProfileScreen extends StatefulWidget {
   final String creatorId;
@@ -14,13 +15,18 @@ class CreatorProfileScreen extends StatefulWidget {
   State<CreatorProfileScreen> createState() => _CreatorProfileScreenState();
 }
 
+enum _ProfileMediaTab { posts, reposts, likes }
+
 class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   final MediaRepository _mediaRepository = MediaRepository();
   final MediaSocialRepository _socialRepository = MediaSocialRepository();
 
   CreatorProfile? _profile;
   List<MediaItem> _posts = const [];
+  List<MediaItem> _reposts = const [];
+  List<MediaItem> _likedPosts = const [];
   Map<String, int> _viewCounts = const {};
+  _ProfileMediaTab _selectedTab = _ProfileMediaTab.posts;
 
   bool _loading = true;
   bool _following = false;
@@ -54,20 +60,39 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           Future<bool>.value(false),
         _socialRepository.getFollowerCount(widget.creatorId),
         _socialRepository.getFollowingCount(widget.creatorId),
+        _socialRepository.getRepostedMediaIds(widget.creatorId),
+        _socialRepository.getLikedMediaIds(widget.creatorId),
       ]);
 
       final posts = results[1] as List<MediaItem>;
+      final repostIds = results[5] as List<String>;
+      final likedIds = results[6] as List<String>;
+
+      final mediaResults = await Future.wait([
+        _mediaRepository.getPublishedMediaByIds(repostIds),
+        _mediaRepository.getPublishedMediaByIds(likedIds),
+      ]);
+
+      final reposts = mediaResults[0];
+      final likedPosts = mediaResults[1];
 
       final likeCounts = await Future.wait(
         posts.map((item) => _socialRepository.getLikeCount(item.id)),
       );
 
+      final allVisibleItems = <String, MediaItem>{
+        for (final item in posts) item.id: item,
+        for (final item in reposts) item.id: item,
+        for (final item in likedPosts) item.id: item,
+      }.values.toList();
+
       final viewCounts = await Future.wait(
-        posts.map((item) => _socialRepository.getViewCount(item.id)),
+        allVisibleItems.map((item) => _socialRepository.getViewCount(item.id)),
       );
 
       final viewsByMediaId = <String, int>{
-        for (var i = 0; i < posts.length; i++) posts[i].id: viewCounts[i],
+        for (var i = 0; i < allVisibleItems.length; i++)
+          allVisibleItems[i].id: viewCounts[i],
       };
 
       final totalLikes = likeCounts.fold<int>(
@@ -80,6 +105,8 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
       setState(() {
         _profile = results[0] as CreatorProfile?;
         _posts = posts;
+        _reposts = reposts;
+        _likedPosts = likedPosts;
         _viewCounts = viewsByMediaId;
         _following = results[2] as bool;
         _followerCount = results[3] as int;
@@ -183,6 +210,20 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           _profile?.username ?? 'Profile',
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
+        actions: [
+          if (_isOwnProfile)
+            IconButton(
+              tooltip: 'Creator settings',
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const CreatorSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildBody()),
     );
@@ -226,6 +267,18 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
       );
     }
 
+    final selectedItems = switch (_selectedTab) {
+      _ProfileMediaTab.posts => _posts,
+      _ProfileMediaTab.reposts => _reposts,
+      _ProfileMediaTab.likes => _likedPosts,
+    };
+
+    final emptyMessage = switch (_selectedTab) {
+      _ProfileMediaTab.posts => 'No posts yet.',
+      _ProfileMediaTab.reposts => 'No reposts yet.',
+      _ProfileMediaTab.likes => 'No liked posts yet.',
+    };
+
     return CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
@@ -243,15 +296,28 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
             onUpload: _openUpload,
           ),
         ),
-        if (_posts.isEmpty)
-          const SliverFillRemaining(
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _ProfileTabsHeaderDelegate(
+            selectedTab: _selectedTab,
+            onSelected: (tab) {
+              if (_selectedTab == tab) return;
+
+              setState(() {
+                _selectedTab = tab;
+              });
+            },
+          ),
+        ),
+        if (selectedItems.isEmpty)
+          SliverFillRemaining(
             hasScrollBody: false,
             child: Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: const EdgeInsets.all(32),
                 child: Text(
-                  'No posts yet.',
-                  style: TextStyle(color: Colors.black54, fontSize: 16),
+                  emptyMessage,
+                  style: const TextStyle(color: Colors.black54, fontSize: 16),
                 ),
               ),
             ),
@@ -261,13 +327,13 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
             padding: const EdgeInsets.all(2),
             sliver: SliverGrid(
               delegate: SliverChildBuilderDelegate((context, index) {
-                final item = _posts[index];
+                final item = selectedItems[index];
 
                 return _ProfileMediaTile(
                   item: item,
                   viewCount: _viewCounts[item.id] ?? 0,
                 );
-              }, childCount: _posts.length),
+              }, childCount: selectedItems.length),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 2,
@@ -277,6 +343,110 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ProfileTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final _ProfileMediaTab selectedTab;
+  final ValueChanged<_ProfileMediaTab> onSelected;
+
+  const _ProfileTabsHeaderDelegate({
+    required this.selectedTab,
+    required this.onSelected,
+  });
+
+  @override
+  double get minExtent => 52;
+
+  @override
+  double get maxExtent => 52;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: Colors.white,
+      elevation: overlapsContent ? 1 : 0,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFE5E5E5))),
+        ),
+        child: Row(
+          children: [
+            _ProfileTabButton(
+              label: 'Posts',
+              selected: selectedTab == _ProfileMediaTab.posts,
+              onTap: () => onSelected(_ProfileMediaTab.posts),
+            ),
+            _ProfileTabButton(
+              label: 'Reposts',
+              selected: selectedTab == _ProfileMediaTab.reposts,
+              onTap: () => onSelected(_ProfileMediaTab.reposts),
+            ),
+            _ProfileTabButton(
+              label: 'Likes',
+              selected: selectedTab == _ProfileMediaTab.likes,
+              onTap: () => onSelected(_ProfileMediaTab.likes),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _ProfileTabsHeaderDelegate oldDelegate) {
+    return oldDelegate.selectedTab != selectedTab;
+  }
+}
+
+class _ProfileTabButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ProfileTabButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 52,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Center(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? Colors.black : Colors.black54,
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                height: 2,
+                width: selected ? 44 : 0,
+                color: selected ? Colors.black : Colors.transparent,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -334,10 +504,26 @@ class _ProfileHeader extends StatelessWidget {
                 : null,
           ),
           const SizedBox(height: 12),
-          Text(
-            profile.visibleName,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  profile.visibleName,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (profile.isVerified) ...[
+                const SizedBox(width: 5),
+                const _VerifiedBadge(),
+              ],
+            ],
           ),
           const SizedBox(height: 3),
           Text(
@@ -401,6 +587,28 @@ class _ProfileHeader extends StatelessWidget {
           const SizedBox(height: 22),
           const Divider(height: 1),
         ],
+      ),
+    );
+  }
+}
+
+class _VerifiedBadge extends StatelessWidget {
+  const _VerifiedBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Tooltip(
+      message: 'Verified account',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Color(0xFF2E7D5B),
+          shape: BoxShape.circle,
+        ),
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: Icon(Icons.check_rounded, size: 14, color: Colors.white),
+        ),
       ),
     );
   }
