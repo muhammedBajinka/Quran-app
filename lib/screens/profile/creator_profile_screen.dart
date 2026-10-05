@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
+import '../../services/media_worker_service.dart';
 
 class CreatorProfileScreen extends StatefulWidget {
   final String creatorId;
@@ -140,10 +141,29 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     }
   }
 
-  void _openUpload() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Creator Studio is being connected next.')),
-    );
+  Future<void> _openUpload() async {
+    try {
+      final result = await MediaWorkerService().testAuthentication();
+
+      if (!mounted) return;
+
+      final authenticated = result['authenticated'] == true;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            authenticated
+                ? 'Media server authentication successful.'
+                : 'Media server authentication failed.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Media server error: $error')));
+    }
   }
 
   void _openEditProfile() {
