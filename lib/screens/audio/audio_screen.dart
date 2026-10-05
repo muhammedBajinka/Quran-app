@@ -27,7 +27,10 @@ class _AudioScreenState extends State<AudioScreen> {
 
   _MediaFeedTab _selectedTab = _MediaFeedTab.forYou;
 
+  bool _searchMode = false;
+  final TextEditingController _searchController = TextEditingController();
   late Future<List<MediaItem>> _items;
+  Future<List<MediaItem>>? _searchResults;
 
   @override
   void initState() {
@@ -37,6 +40,37 @@ class _AudioScreenState extends State<AudioScreen> {
 
   void _load() {
     _items = _loadSelectedFeed();
+  }
+
+  void _openSearch() {
+    widget.audioController.pause();
+
+    setState(() {
+      _searchMode = true;
+      _searchController.clear();
+      _searchResults = null;
+    });
+  }
+
+  void _closeSearch() {
+    widget.audioController.pause();
+
+    setState(() {
+      _searchMode = false;
+      _searchController.clear();
+      _searchResults = null;
+      _currentVisibleItem = null;
+    });
+  }
+
+  void _runSearch(String query) {
+    final trimmed = query.trim();
+
+    setState(() {
+      _searchResults = trimmed.isEmpty
+          ? null
+          : _repository.searchPublished(trimmed);
+    });
   }
 
   Future<List<MediaItem>> _loadSelectedFeed() async {
@@ -95,6 +129,7 @@ class _AudioScreenState extends State<AudioScreen> {
   @override
   void dispose() {
     widget.audioController.pause();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -157,6 +192,19 @@ class _AudioScreenState extends State<AudioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_searchMode) {
+      return _MediaSearchView(
+        controller: _searchController,
+        results: _searchResults,
+        repository: _repository,
+        audioController: widget.audioController,
+        socialRepository: _socialRepository,
+        onBack: _closeSearch,
+        onSearch: _runSearch,
+        onCreatorPressed: _openCreatorProfile,
+      );
+    }
+
     return ColoredBox(
       color: Colors.black,
       child: Stack(
@@ -213,16 +261,162 @@ class _AudioScreenState extends State<AudioScreen> {
           _TopNavigation(
             selectedTab: _selectedTab,
             onSelected: _selectTab,
-            onSearch: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Media search will be connected next.'),
-                ),
-              );
-            },
+            onSearch: _openSearch,
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MediaSearchView extends StatelessWidget {
+  final TextEditingController controller;
+  final Future<List<MediaItem>>? results;
+  final MediaRepository repository;
+  final MediaAudioController audioController;
+  final MediaSocialRepository socialRepository;
+  final VoidCallback onBack;
+  final ValueChanged<String> onSearch;
+  final ValueChanged<String> onCreatorPressed;
+
+  const _MediaSearchView({
+    required this.controller,
+    required this.results,
+    required this.repository,
+    required this.audioController,
+    required this.socialRepository,
+    required this.onBack,
+    required this.onSearch,
+    required this.onCreatorPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Back',
+                    color: Colors.white,
+                    onPressed: onBack,
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Search Media',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                textInputAction: TextInputAction.search,
+                onSubmitted: onSearch,
+                decoration: InputDecoration(
+                  hintText: 'Search title, speaker, or description',
+                  hintStyle: const TextStyle(color: Colors.white60),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
+                  suffixIcon: IconButton(
+                    tooltip: 'Search',
+                    color: Colors.white,
+                    onPressed: () => onSearch(controller.text),
+                    icon: const Icon(Icons.arrow_forward),
+                  ),
+                  filled: true,
+                  fillColor: Colors.white12,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+            Expanded(child: _buildResults(context)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults(BuildContext context) {
+    final future = results;
+
+    if (future == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Search for a title, speaker, or description.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+        ),
+      );
+    }
+
+    return FutureBuilder<List<MediaItem>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Search failed. Please try again.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ),
+          );
+        }
+
+        final items = snapshot.data ?? const <MediaItem>[];
+
+        if (items.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'No Media found for that search.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            ),
+          );
+        }
+
+        return _UnifiedMediaFeed(
+          key: ValueKey(items.map((item) => item.id).join(',')),
+          items: items,
+          audioController: audioController,
+          socialRepository: socialRepository,
+          onSwipeLeft: () {},
+          onSwipeRight: () {},
+          onCurrentItemChanged: (_) {},
+          onCreatorPressed: onCreatorPressed,
+        );
+      },
     );
   }
 }

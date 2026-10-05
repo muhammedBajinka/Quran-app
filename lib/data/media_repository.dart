@@ -94,6 +94,53 @@ class MediaRepository {
     return getAllPublished(mediaType: 'audio', shuffle: true);
   }
 
+  Future<List<MediaItem>> searchPublished(String query) async {
+    final search = query.trim();
+
+    if (search.isEmpty) {
+      return const [];
+    }
+
+    final pattern = '%$search%';
+
+    final results = await Future.wait([
+      _client
+          .from('media_content')
+          .select(_columns)
+          .eq('published', true)
+          .ilike('title', pattern)
+          .order('created_at', ascending: false),
+      _client
+          .from('media_content')
+          .select(_columns)
+          .eq('published', true)
+          .ilike('speaker', pattern)
+          .order('created_at', ascending: false),
+      _client
+          .from('media_content')
+          .select(_columns)
+          .eq('published', true)
+          .ilike('description', pattern)
+          .order('created_at', ascending: false),
+    ]);
+
+    final seen = <String>{};
+    final rows = <dynamic>[];
+
+    for (final result in results) {
+      for (final row in result) {
+        final map = Map<String, dynamic>.from(row as Map);
+        final id = map['id']?.toString();
+
+        if (id != null && seen.add(id)) {
+          rows.add(map);
+        }
+      }
+    }
+
+    return _mapRows(rows);
+  }
+
   Future<List<MediaItem>> getCreatorPosts(String creatorId) async {
     final rows = await _client
         .from('media_content')
