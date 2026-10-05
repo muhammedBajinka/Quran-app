@@ -1339,7 +1339,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               ),
             ),
 
-          Positioned(right: 12, bottom: 145, child: _buildActionRail()),
+          Positioned(right: 12, bottom: 62, child: _buildActionRail()),
 
           Positioned(
             left: 14,
@@ -1528,7 +1528,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               ),
           ],
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 16),
 
         _ActionButton(
           icon: _liked ? Icons.favorite : Icons.favorite_border,
@@ -1700,7 +1700,7 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 13),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         children: [
           Container(
