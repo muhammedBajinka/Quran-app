@@ -444,6 +444,8 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
             audioController: widget.audioController,
             socialRepository: widget.socialRepository,
             onCreatorPressed: widget.onCreatorPressed,
+            onSwipeLeft: widget.onSwipeLeft,
+            onSwipeRight: widget.onSwipeRight,
           );
         },
       ),
@@ -457,6 +459,8 @@ class _MediaFeedPage extends StatefulWidget {
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
   final ValueChanged<String> onCreatorPressed;
+  final VoidCallback onSwipeLeft;
+  final VoidCallback onSwipeRight;
 
   const _MediaFeedPage({
     super.key,
@@ -465,6 +469,8 @@ class _MediaFeedPage extends StatefulWidget {
     required this.audioController,
     required this.socialRepository,
     required this.onCreatorPressed,
+    required this.onSwipeLeft,
+    required this.onSwipeRight,
   });
 
   @override
@@ -1091,6 +1097,17 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               behavior: HitTestBehavior.opaque,
               onTap: _tapMedia,
               onDoubleTap: _doubleTapLike,
+              onHorizontalDragEnd: (details) {
+                final velocity = details.primaryVelocity ?? 0;
+
+                const threshold = 220.0;
+
+                if (velocity <= -threshold) {
+                  widget.onSwipeLeft();
+                } else if (velocity >= threshold) {
+                  widget.onSwipeRight();
+                }
+              },
               child: const ColoredBox(color: Colors.transparent),
             ),
           ),
@@ -1128,7 +1145,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               ),
             ),
 
-          Positioned(right: 12, bottom: 90, child: _buildActionRail()),
+          Positioned(right: 12, bottom: 145, child: _buildActionRail()),
 
           Positioned(
             left: 14,
@@ -1290,23 +1307,28 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
                 ),
               ),
             ),
-            if (!ownPost && creatorId != null && !_following)
+            if (!ownPost && creatorId != null)
               Positioned(
                 bottom: -9,
                 child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: _toggleFollow,
                   child: Container(
                     width: 22,
                     height: 22,
                     decoration: BoxDecoration(
-                      color: Color(0xFFFF2D55),
+                      color: const Color(0xFF2E7D5B),
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 1.5),
                       boxShadow: const [
                         BoxShadow(color: Colors.black54, blurRadius: 5),
                       ],
                     ),
-                    child: const Icon(Icons.add, size: 16, color: Colors.white),
+                    child: Icon(
+                      _following ? Icons.check : Icons.add,
+                      size: 16,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
