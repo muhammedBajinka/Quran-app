@@ -5,10 +5,11 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/audio/quran_reciter.dart';
 import '../../services/app_config_service.dart';
 import '../../services/app_info_service.dart';
+import '../../services/auth_service.dart';
 import '../../services/feedback_service.dart';
 import '../../state/quran_settings_state.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   final QuranSettingsState settingsState;
   final List<QuranReciter> reciters;
 
@@ -17,6 +18,52 @@ class SettingsScreen extends StatelessWidget {
     required this.settingsState,
     this.reciters = const [],
   });
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final AuthService _authService = AuthService();
+
+  bool _googleLoading = false;
+
+  Future<void> _continueWithGoogle() async {
+    if (_googleLoading) {
+      return;
+    }
+
+    setState(() {
+      _googleLoading = true;
+    });
+
+    try {
+      final launched = await _authService.continueWithGoogle();
+
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start Google sign-in.')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Google sign-in failed: $error'),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _googleLoading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _shareApp(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -52,11 +99,79 @@ class SettingsScreen extends StatelessWidget {
     }
   }
 
+  Widget _buildAccountCard() {
+    final user = _authService.currentUser;
+    final anonymous = _authService.isAnonymous;
+
+    if (!anonymous && user != null) {
+      final email = user.email?.trim();
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          leading: const CircleAvatar(child: Icon(Icons.person)),
+          title: const Text(
+            'Google account',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(email == null || email.isEmpty ? 'Signed in' : email),
+          trailing: const Icon(Icons.verified, color: Color(0xFF2E7D5B)),
+        ),
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.account_circle_outlined, color: Color(0xFF2E7D5B)),
+                SizedBox(width: 12),
+                Text(
+                  'Your account',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 17),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text('Save your Quran Life account with Google.'),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _googleLoading ? null : _continueWithGoogle,
+                icon: _googleLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login),
+                label: Text(
+                  _googleLoading ? 'Connecting...' : 'Continue with Google',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
+        const _SectionTitle('Account'),
+
+        _buildAccountCard(),
+
+        const SizedBox(height: 20),
         const _SectionTitle('Quran'),
 
         Card(
@@ -82,7 +197,9 @@ class SettingsScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Padding(
                   padding: const EdgeInsets.only(left: 40),
-                  child: Text('Size: ${settingsState.arabicTextSize.round()}'),
+                  child: Text(
+                    'Size: ${widget.settingsState.arabicTextSize.round()}',
+                  ),
                 ),
                 Row(
                   children: [
@@ -95,8 +212,8 @@ class SettingsScreen extends StatelessWidget {
                             (QuranSettingsState.maxArabicTextSize -
                                     QuranSettingsState.minArabicTextSize)
                                 .round(),
-                        value: settingsState.arabicTextSize,
-                        onChanged: settingsState.setArabicTextSize,
+                        value: widget.settingsState.arabicTextSize,
+                        onChanged: widget.settingsState.setArabicTextSize,
                       ),
                     ),
                     const Text(
@@ -121,8 +238,8 @@ class SettingsScreen extends StatelessWidget {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => _RecitersPage(
-                  settingsState: settingsState,
-                  reciters: reciters,
+                  settingsState: widget.settingsState,
+                  reciters: widget.reciters,
                 ),
               ),
             );
