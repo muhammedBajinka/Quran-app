@@ -347,6 +347,15 @@ class MediaSocialRepository {
     return row != null;
   }
 
+  Future<int> getRepostCount(String mediaId) async {
+    final rows = await _client
+        .from('media_reposts')
+        .select('id')
+        .eq('media_id', mediaId);
+
+    return (rows as List<dynamic>).length;
+  }
+
   Future<void> repost(String mediaId) async {
     final userId = currentUserId;
 

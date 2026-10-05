@@ -412,8 +412,13 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 
         _horizontalDragDistance = 0;
 
-        final swipedLeft = distance < -60 || velocity < -300;
-        final swipedRight = distance > 60 || velocity > 300;
+        const distanceThreshold = 35.0;
+        const velocityThreshold = 220.0;
+
+        final swipedLeft =
+            distance <= -distanceThreshold || velocity <= -velocityThreshold;
+        final swipedRight =
+            distance >= distanceThreshold || velocity >= velocityThreshold;
 
         if (swipedLeft) {
           widget.onSwipeLeft();
@@ -480,6 +485,9 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
   int _likeCount = 0;
   int _commentCount = 0;
+  int _repostCount = 0;
+
+  bool _showLikeHeart = false;
 
   double _speed = 1.0;
 
@@ -548,6 +556,10 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         widget.item.id,
       );
 
+      final repostCount = await widget.socialRepository.getRepostCount(
+        widget.item.id,
+      );
+
       if (!mounted) {
         return;
       }
@@ -559,6 +571,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         _reposted = reposted;
         _likeCount = likeCount;
         _commentCount = commentCount;
+        _repostCount = repostCount;
       });
     } catch (_) {
       // The Media itself should remain usable even if
@@ -670,6 +683,46 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
   void _tapMedia() {
     _togglePlayback();
+  }
+
+  Future<void> _doubleTapLike() async {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _showLikeHeart = true;
+    });
+
+    if (!_liked) {
+      final previousCount = _likeCount;
+
+      setState(() {
+        _liked = true;
+        _likeCount++;
+      });
+
+      try {
+        await widget.socialRepository.like(widget.item.id);
+      } catch (_) {
+        if (mounted) {
+          setState(() {
+            _liked = false;
+            _likeCount = previousCount;
+          });
+        }
+      }
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 650));
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _showLikeHeart = false;
+    });
   }
 
   Future<void> _downloadMedia() async {
@@ -954,9 +1007,16 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
   Future<void> _toggleRepost() async {
     final previous = _reposted;
+    final previousCount = _repostCount;
 
     setState(() {
       _reposted = !previous;
+
+      if (_reposted) {
+        _repostCount++;
+      } else if (_repostCount > 0) {
+        _repostCount--;
+      }
     });
 
     try {
@@ -972,6 +1032,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
       setState(() {
         _reposted = previous;
+        _repostCount = previousCount;
       });
     }
   }
@@ -1029,9 +1090,28 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _tapMedia,
+              onDoubleTap: _doubleTapLike,
               child: const ColoredBox(color: Colors.transparent),
             ),
           ),
+
+          if (_showLikeHeart)
+            const Center(
+              child: IgnorePointer(
+                child: Icon(
+                  Icons.favorite,
+                  color: Colors.white,
+                  size: 105,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black87,
+                      blurRadius: 18,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           if (widget.item.hasVideo && _videoInitialized && _showPlayButton)
             const Center(
@@ -1181,19 +1261,33 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               onTap: creatorId == null
                   ? null
                   : () => widget.onCreatorPressed(creatorId),
-              child: CircleAvatar(
-                radius: 24,
-                backgroundColor: Colors.white24,
-                backgroundImage:
-                    _creator?.avatarUrl != null &&
-                        _creator!.avatarUrl!.trim().isNotEmpty
-                    ? NetworkImage(_creator!.avatarUrl!)
-                    : null,
-                child:
-                    _creator?.avatarUrl == null ||
-                        _creator!.avatarUrl!.trim().isEmpty
-                    ? const Icon(Icons.person, color: Colors.white)
-                    : null,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black54,
+                      blurRadius: 7,
+                      spreadRadius: 1,
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Color(0xFF333333),
+                  backgroundImage:
+                      _creator?.avatarUrl != null &&
+                          _creator!.avatarUrl!.trim().isNotEmpty
+                      ? NetworkImage(_creator!.avatarUrl!)
+                      : null,
+                  child:
+                      _creator?.avatarUrl == null ||
+                          _creator!.avatarUrl!.trim().isEmpty
+                      ? const Icon(Icons.person, color: Colors.white)
+                      : null,
+                ),
               ),
             ),
             if (!ownPost && creatorId != null && !_following)
@@ -1205,11 +1299,14 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
                     width: 22,
                     height: 22,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Color(0xFFFF2D55),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.black, width: 2),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black54, blurRadius: 5),
+                      ],
                     ),
-                    child: const Icon(Icons.add, size: 16, color: Colors.black),
+                    child: const Icon(Icons.add, size: 16, color: Colors.white),
                   ),
                 ),
               ),
@@ -1231,7 +1328,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
         _ActionButton(
           icon: _reposted ? Icons.repeat_on_rounded : Icons.repeat_rounded,
-          label: 'Repost',
+          label: _compactNumber(_repostCount),
           onPressed: _toggleRepost,
         ),
 
@@ -1390,19 +1487,52 @@ class _ActionButton extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 13),
       child: Column(
         children: [
-          IconButton(
-            onPressed: onPressed,
-            iconSize: 32,
-            color: Colors.white,
-            visualDensity: VisualDensity.compact,
-            icon: Icon(icon),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.30),
+              shape: BoxShape.circle,
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black54,
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: IconButton(
+              onPressed: onPressed,
+              iconSize: 32,
+              color: Colors.white,
+              padding: EdgeInsets.zero,
+              visualDensity: VisualDensity.compact,
+              icon: Icon(
+                icon,
+                shadows: const [
+                  Shadow(
+                    color: Colors.black,
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
           ),
+          const SizedBox(height: 2),
           Text(
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 10,
-              shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              shadows: [
+                Shadow(
+                  blurRadius: 5,
+                  color: Colors.black,
+                  offset: Offset(0, 1),
+                ),
+              ],
             ),
           ),
         ],
