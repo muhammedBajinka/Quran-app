@@ -141,7 +141,7 @@ class CreatorUploadQueue extends ChangeNotifier {
         description: job.description,
         speaker: job.speaker,
         onProgress: (progress) {
-          job.progress = progress.clamp(0, 1);
+          job.progress = progress.clamp(0.0, 1.0).toDouble();
           notifyListeners();
         },
       );
