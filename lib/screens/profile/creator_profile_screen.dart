@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
-import '../../services/media_worker_service.dart';
+import 'upload_media_screen.dart';
 import 'creator_settings_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -170,27 +170,18 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   }
 
   Future<void> _openUpload() async {
-    try {
-      final result = await MediaWorkerService().testAuthentication();
+    if (!_isOwnProfile) {
+      return;
+    }
 
-      if (!mounted) return;
+    final uploaded = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => const UploadMediaScreen(),
+      ),
+    );
 
-      final authenticated = result['authenticated'] == true;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            authenticated
-                ? 'Media server authentication successful.'
-                : 'Media server authentication failed.',
-          ),
-        ),
-      );
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Media server error: $error')));
+    if (uploaded == true && mounted) {
+      await _load();
     }
   }
 
