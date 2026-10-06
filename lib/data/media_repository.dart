@@ -155,7 +155,7 @@ class MediaRepository {
         .eq('published', true)
         .inFilter('id', mediaIds);
 
-    final items = _mapRows(rows);
+    final items = await _withSignedThumbnails(_mapRows(rows));
     final itemsById = <String, MediaItem>{
       for (final item in items) item.id: item,
     };
@@ -169,6 +169,7 @@ class MediaRepository {
         .select(_columns)
         .eq('published', true)
         .eq('creator_id', creatorId)
+        .neq('visibility', 'private')
         .order('created_at', ascending: false);
 
     return _withSignedThumbnails(_mapRows(rows));
