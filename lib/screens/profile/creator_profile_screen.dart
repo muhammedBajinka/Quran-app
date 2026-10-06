@@ -59,9 +59,15 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         else
           Future<bool>.value(false),
         _socialRepository.getFollowerCount(widget.creatorId),
-        _socialRepository.getFollowingCount(widget.creatorId),
+        if (_isOwnProfile)
+          _socialRepository.getOwnFollowingCount()
+        else
+          Future<int>.value(0),
         _socialRepository.getRepostedMediaIds(widget.creatorId),
-        _socialRepository.getLikedMediaIds(widget.creatorId),
+        if (_isOwnProfile)
+          _socialRepository.getLikedMediaIds(widget.creatorId)
+        else
+          Future<List<String>>.value(const []),
       ]);
 
       final posts = results[1] as List<MediaItem>;
