@@ -188,7 +188,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   void _selectAdjacentTab(int direction) {
     final tabs = _ProfileMediaTab.values;
     final currentIndex = tabs.indexOf(_selectedTab);
-    final nextIndex = (currentIndex + direction).clamp(0, tabs.length - 1);
+    final nextIndex = (currentIndex + direction).clamp(0, tabs.length - 1).toInt();
     if (nextIndex == currentIndex) return;
     setState(() => _selectedTab = tabs[nextIndex]);
   }
