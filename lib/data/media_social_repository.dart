@@ -241,14 +241,14 @@ class MediaSocialRepository {
     });
   }
 
-  /// Returns the number of views for a Media post.
+  /// Returns the number of views for a Media post without exposing viewer rows.
   Future<int> getViewCount(String mediaId) async {
-    final rows = await _client
-        .from('media_views')
-        .select('id')
-        .eq('media_id', mediaId);
+    final count = await _client.rpc(
+      'get_media_view_count',
+      params: {'p_media_id': mediaId},
+    );
 
-    return (rows as List<dynamic>).length;
+    return (count as num).toInt();
   }
 
   /// Returns the number of likes for a Media post.
