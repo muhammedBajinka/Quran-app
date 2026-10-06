@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
+import '../../services/creator_upload_queue.dart';
 import 'upload_media_screen.dart';
 import 'creator_settings_screen.dart';
 import 'edit_profile_screen.dart';
@@ -26,7 +27,10 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   List<MediaItem> _posts = const [];
   List<MediaItem> _reposts = const [];
   List<MediaItem> _likedPosts = const [];
+  List<MediaItem> _drafts = const [];
+  List<MediaItem> _privatePosts = const [];
   Map<String, int> _viewCounts = const {};
+  int _completedUploadCount = 0;
 
   bool _loading = true;
   bool _following = false;
@@ -41,7 +45,31 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _completedUploadCount = CreatorUploadQueue.instance.jobs
+        .where((job) => job.state == CreatorUploadState.completed)
+        .length;
+    CreatorUploadQueue.instance.addListener(_uploadQueueChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    CreatorUploadQueue.instance.removeListener(_uploadQueueChanged);
+    super.dispose();
+  }
+
+  void _uploadQueueChanged() {
+    if (!mounted) return;
+    final completed = CreatorUploadQueue.instance.jobs
+        .where((job) => job.state == CreatorUploadState.completed)
+        .length;
+    setState(() {});
+    if (completed > _completedUploadCount) {
+      _completedUploadCount = completed;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
   }
 
   Future<void> _load() async {
@@ -65,11 +93,21 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           Future<int>.value(0),
         _socialRepository.getRepostedMediaIds(widget.creatorId),
         _socialRepository.getLikedMediaIds(widget.creatorId),
+        if (_isOwnProfile)
+          _mediaRepository.getOwnDrafts()
+        else
+          Future<List<MediaItem>>.value(const []),
+        if (_isOwnProfile)
+          _mediaRepository.getOwnPrivatePosts()
+        else
+          Future<List<MediaItem>>.value(const []),
       ]);
 
       final posts = results[1] as List<MediaItem>;
       final repostIds = results[5] as List<String>;
       final likedIds = results[6] as List<String>;
+      final drafts = results[7] as List<MediaItem>;
+      final privatePosts = results[8] as List<MediaItem>;
 
       final mediaResults = await Future.wait([
         _mediaRepository.getPublishedMediaByIds(repostIds),
@@ -110,6 +148,8 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         _posts = posts;
         _reposts = reposts;
         _likedPosts = likedPosts;
+        _drafts = drafts;
+        _privatePosts = privatePosts;
         _viewCounts = viewsByMediaId;
         _following = results[2] as bool;
         _followerCount = results[3] as int;
@@ -285,6 +325,10 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
 
     final tabs = <({String label, List<MediaItem> items, String empty})>[
       (label: 'Posts', items: _posts, empty: 'No posts yet.'),
+      if (_isOwnProfile)
+        (label: 'Drafts', items: _drafts, empty: 'No drafts yet.'),
+      if (_isOwnProfile)
+        (label: 'Private', items: _privatePosts, empty: 'No private posts yet.'),
       (label: 'Reposts', items: _reposts, empty: 'No reposts yet.'),
       (label: 'Likes', items: _likedPosts, empty: 'No liked posts yet.'),
     ];
@@ -308,6 +352,14 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
               onUpload: _openUpload,
             ),
           ),
+          if (_isOwnProfile && CreatorUploadQueue.instance.jobs.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _UploadQueuePanel(
+                jobs: CreatorUploadQueue.instance.jobs,
+                onRetry: CreatorUploadQueue.instance.retry,
+                onDismiss: CreatorUploadQueue.instance.removeCompleted,
+              ),
+            ),
           SliverPersistentHeader(
             pinned: true,
             delegate: _ProfileTabsHeaderDelegate(
@@ -326,6 +378,107 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _UploadQueuePanel extends StatelessWidget {
+  final List<CreatorUploadJob> jobs;
+  final ValueChanged<String> onRetry;
+  final ValueChanged<String> onDismiss;
+
+  const _UploadQueuePanel({
+    required this.jobs,
+    required this.onRetry,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF7FAF8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Uploads',
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+          if (jobs.any((job) => job.isActive)) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'Keep Quran Life open while uploads are running. Leaving or closing the app may interrupt them.',
+              style: TextStyle(color: Colors.black54, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 8),
+          for (final job in jobs.take(6)) _jobTile(job),
+        ],
+      ),
+    );
+  }
+
+  Widget _jobTile(CreatorUploadJob job) {
+    final percent = (job.progress * 100).round();
+    String status;
+    switch (job.state) {
+      case CreatorUploadState.queued:
+        status = 'Queued';
+      case CreatorUploadState.uploading:
+        status = 'Uploading $percent%';
+      case CreatorUploadState.finalizing:
+        status = 'Finishing upload';
+      case CreatorUploadState.completed:
+        status = job.draft ? 'Saved to Drafts' : 'Posted';
+      case CreatorUploadState.failed:
+        status = job.error ?? 'Upload failed';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.video_file_outlined, size: 28),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(job.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Text(
+                  status,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: job.state == CreatorUploadState.failed
+                        ? Colors.red.shade700
+                        : Colors.black54,
+                    fontSize: 12,
+                  ),
+                ),
+                if (job.state == CreatorUploadState.uploading)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: LinearProgressIndicator(value: job.progress),
+                  ),
+              ],
+            ),
+          ),
+          if (job.state == CreatorUploadState.failed)
+            TextButton(
+              onPressed: () => onRetry(job.localId),
+              child: const Text('Retry'),
+            )
+          else if (job.state == CreatorUploadState.completed)
+            IconButton(
+              tooltip: 'Dismiss',
+              onPressed: () => onDismiss(job.localId),
+              icon: const Icon(Icons.close, size: 20),
+            ),
+        ],
       ),
     );
   }
