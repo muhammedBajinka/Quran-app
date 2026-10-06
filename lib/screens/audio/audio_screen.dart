@@ -647,7 +647,8 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
         },
       ),
     );
-  }}
+  }
+}
 
 class _MediaFeedPage extends StatefulWidget {
   final MediaItem item;
