@@ -330,40 +330,45 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     final mime = _mimeType;
     if (bytes == null || mime == null) return _fileStep();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
-      children: [
-        Text(
-          _mediaType == 'video' ? 'Edit your video' : 'Edit your audio',
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Preview it here and drag the handles to choose the part you want to post.',
-          style: TextStyle(color: Colors.black54),
-        ),
-        const SizedBox(height: 18),
-        CreatorMediaEditor(
-          bytes: bytes,
-          mediaType: _mediaType,
-          mimeType: mime,
-          sourcePath: _selectedFile?.path,
-          trim: _trimRange,
-          onTrimChanged: (range) {
-            if (mounted) setState(() => _trimRange = range);
-          },
-        ),
-        const SizedBox(height: 20),
-        OutlinedButton.icon(
-          onPressed: _pickMedia,
-          icon: const Icon(Icons.swap_horiz),
-          label: Text(
-            _mediaType == 'video' ? 'Choose another video' : 'Choose another audio',
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            _mediaType == 'video' ? 'Edit your video' : 'Edit your audio',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
-        ),
-        const SizedBox(height: 12),
-        FilledButton(onPressed: _nextStep, child: const Text('Next')),
-      ],
+          const SizedBox(height: 4),
+          const Text(
+            'Preview it and drag the handles to choose the part you want to post.',
+            style: TextStyle(color: Colors.black54),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: CreatorMediaEditor(
+              bytes: bytes,
+              mediaType: _mediaType,
+              mimeType: mime,
+              sourcePath: _selectedFile?.path,
+              trim: _trimRange,
+              onTrimChanged: (range) {
+                if (mounted) setState(() => _trimRange = range);
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _pickMedia,
+            icon: const Icon(Icons.swap_horiz),
+            label: Text(
+              _mediaType == 'video' ? 'Choose another video' : 'Choose another audio',
+            ),
+          ),
+          const SizedBox(height: 8),
+          FilledButton(onPressed: _nextStep, child: const Text('Next')),
+        ],
+      ),
     );
   }
 

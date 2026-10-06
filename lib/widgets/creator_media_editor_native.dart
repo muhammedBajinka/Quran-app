@@ -23,35 +23,42 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   bool _playing = false;
+  String? _error;
   RangeValues _trim = const RangeValues(0, 1);
   double get _durationMs => _duration.inMilliseconds.toDouble();
 
   @override void initState() { super.initState(); _initialise(); }
 
   Future<void> _initialise() async {
-    final path = widget.sourcePath;
-    if (path == null || path.isEmpty) return;
-    if (widget.mediaType == 'video') {
-      final controller = VideoPlayerController.file(File(path));
-      await controller.initialize();
-      controller.addListener(_onVideoTick);
-      _video = controller;
-      _duration = controller.value.duration;
-    } else {
-      final player = AudioPlayer();
-      _audio = player;
-      await player.setSource(DeviceFileSource(path));
-      _duration = (await player.getDuration()) ?? Duration.zero;
-      player.onPositionChanged.listen((value) {
-        if (!mounted) return;
-        _position = value; _enforceTrimEnd(); setState(() {});
-      });
-      player.onPlayerStateChanged.listen((state) { if (mounted) setState(() => _playing = state == PlayerState.playing); });
+    try {
+      final path = widget.sourcePath;
+      if (path == null || path.isEmpty) {
+        throw StateError('Selected media has no local path.');
+      }
+      if (widget.mediaType == 'video') {
+        final controller = VideoPlayerController.file(File(path));
+        await controller.initialize();
+        controller.addListener(_onVideoTick);
+        _video = controller;
+        _duration = controller.value.duration;
+      } else {
+        final player = AudioPlayer();
+        _audio = player;
+        await player.setSource(DeviceFileSource(path));
+        _duration = (await player.getDuration()) ?? Duration.zero;
+        player.onPositionChanged.listen((value) {
+          if (!mounted) return;
+          _position = value; _enforceTrimEnd(); setState(() {});
+        });
+        player.onPlayerStateChanged.listen((state) { if (mounted) setState(() => _playing = state == PlayerState.playing); });
+      }
+      final end = _durationMs <= 0 ? 1.0 : _durationMs;
+      _trim = RangeValues(0, end);
+      widget.onTrimChanged(_trim);
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (mounted) setState(() => _error = 'This media could not be previewed. Choose another file and try again.');
     }
-    final end = _durationMs <= 0 ? 1.0 : _durationMs;
-    _trim = RangeValues(0, end);
-    widget.onTrimChanged(_trim);
-    if (mounted) setState(() {});
   }
 
   void _onVideoTick() {
@@ -81,10 +88,11 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
   @override void dispose() { _video?.removeListener(_onVideoTick); _video?.dispose(); _audio?.dispose(); super.dispose(); }
 
   @override Widget build(BuildContext context) {
-    if (_durationMs <= 0) return const SizedBox(height: 300, child: Center(child: CircularProgressIndicator()));
+    if (_error != null) return SizedBox.expand(child: Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center))));
+    if (_durationMs <= 0) return const SizedBox.expand(child: Center(child: CircularProgressIndicator()));
     return Column(children: [
-      ClipRRect(borderRadius: BorderRadius.circular(18), child: Container(height: widget.mediaType == 'video' ? 360 : 220, width: double.infinity, color: const Color(0xFF111111), child: widget.mediaType == 'video' ? _videoPreview() : _audioPreview())),
-      const SizedBox(height: 18),
+      Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(18), child: Container(width: double.infinity, color: const Color(0xFF111111), child: widget.mediaType == 'video' ? _videoPreview() : _audioPreview()))),
+      const SizedBox(height: 10),
       Row(children: [IconButton.filled(onPressed: _toggle, icon: Icon(_playing ? Icons.pause : Icons.play_arrow)), const SizedBox(width: 8), Text(_time(_trim.start)), const Spacer(), Text('${_time(_trim.end)} · ${_time(_trim.end - _trim.start)} selected')]),
       RangeSlider(values: _trim, min: 0, max: _durationMs, labels: RangeLabels(_time(_trim.start), _time(_trim.end)), onChanged: _changeTrim),
       const Text('Drag either end to choose exactly what will be uploaded.', style: TextStyle(color: Colors.black54, fontSize: 12)),
@@ -95,7 +103,7 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
     final controller = _video;
     if (controller == null || !controller.value.isInitialized) return const Center(child: CircularProgressIndicator());
     return Stack(fit: StackFit.expand, children: [
-      FittedBox(fit: BoxFit.contain, child: SizedBox(width: controller.value.aspectRatio > 0 ? controller.value.aspectRatio : 9 / 16, height: 1, child: VideoPlayer(controller))),
+      Center(child: AspectRatio(aspectRatio: controller.value.aspectRatio > 0 ? controller.value.aspectRatio : 9 / 16, child: VideoPlayer(controller))),
       Center(child: IconButton.filledTonal(onPressed: _toggle, iconSize: 34, icon: Icon(_playing ? Icons.pause : Icons.play_arrow))),
     ]);
   }
