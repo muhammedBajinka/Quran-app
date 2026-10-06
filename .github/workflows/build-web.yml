@@ -18,6 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      pages_artifact: ${{ steps.pages_artifact.outputs.name }}
 
     steps:
       - name: Checkout
@@ -49,9 +51,14 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Set GitHub Pages artifact name
+        id: pages_artifact
+        run: echo "name=github-pages-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          name: ${{ steps.pages_artifact.outputs.name }}
           path: build/web
 
   deploy:
@@ -66,3 +73,5 @@ jobs:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          artifact_name: ${{ needs.build.outputs.pages_artifact }}
