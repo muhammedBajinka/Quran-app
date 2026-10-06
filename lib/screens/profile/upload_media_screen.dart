@@ -601,7 +601,7 @@ class _EditDraftScreenState extends State<EditDraftScreen> {
     if (_busy || _titleController.text.trim().isEmpty) return;
     setState(() => _busy = true);
     try {
-      await _repository.updateOwnDraft(
+      await _repository.publishOwnDraft(
         widget.item.id,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
