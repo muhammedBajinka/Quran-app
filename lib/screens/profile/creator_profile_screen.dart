@@ -374,7 +374,9 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                 items: tab.items,
                 viewCounts: _viewCounts,
                 emptyMessage: tab.empty,
-                onOpen: (index) => tab.label == 'Drafts'\n                    ? _openDraft(tab.items[index])\n                    : _openMedia(tab.items, index),
+                onOpen: (index) => tab.label == 'Drafts'
+                    ? _openDraft(tab.items[index])
+                    : _openMedia(tab.items, index),
               ),
           ],
         ),
