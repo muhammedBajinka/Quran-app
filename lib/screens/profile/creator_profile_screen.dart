@@ -20,7 +20,8 @@ class CreatorProfileScreen extends StatefulWidget {
 
 enum _ProfileMediaTab { posts, reposts, likes }
 
-class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
+class _CreatorProfileScreenState extends State<CreatorProfileScreen>
+    with SingleTickerProviderStateMixin {
   final MediaRepository _mediaRepository = MediaRepository();
   final MediaSocialRepository _socialRepository = MediaSocialRepository();
 
@@ -30,6 +31,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   List<MediaItem> _likedPosts = const [];
   Map<String, int> _viewCounts = const {};
   _ProfileMediaTab _selectedTab = _ProfileMediaTab.posts;
+  late final TabController _tabController;
 
   bool _loading = true;
   bool _following = false;
@@ -44,7 +46,27 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(
+      length: _ProfileMediaTab.values.length,
+      vsync: this,
+    );
+    _tabController.addListener(_syncSelectedTab);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabController
+      ..removeListener(_syncSelectedTab)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _syncSelectedTab() {
+    if (_tabController.indexIsChanging) return;
+    final tab = _ProfileMediaTab.values[_tabController.index];
+    if (tab == _selectedTab || !mounted) return;
+    setState(() => _selectedTab = tab);
   }
 
   Future<void> _load() async {
@@ -185,14 +207,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     }
   }
 
-  void _selectAdjacentTab(int direction) {
-    final tabs = _ProfileMediaTab.values;
-    final currentIndex = tabs.indexOf(_selectedTab);
-    final nextIndex = (currentIndex + direction).clamp(0, tabs.length - 1).toInt();
-    if (nextIndex == currentIndex) return;
-    setState(() => _selectedTab = tabs[nextIndex]);
-  }
-
   Future<void> _openMedia(List<MediaItem> items, int initialIndex) async {
     if (items.isEmpty || initialIndex < 0 || initialIndex >= items.length) return;
     await Navigator.of(context).push(
@@ -291,21 +305,8 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
       );
     }
 
-    final selectedItems = switch (_selectedTab) {
-      _ProfileMediaTab.posts => _posts,
-      _ProfileMediaTab.reposts => _reposts,
-      _ProfileMediaTab.likes => _likedPosts,
-    };
-
-    final emptyMessage = switch (_selectedTab) {
-      _ProfileMediaTab.posts => 'No posts yet.',
-      _ProfileMediaTab.reposts => 'No reposts yet.',
-      _ProfileMediaTab.likes => 'No liked posts yet.',
-    };
-
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
+    return NestedScrollView(
+      headerSliverBuilder: (context, innerBoxIsScrolled) => [
         SliverToBoxAdapter(
           child: _ProfileHeader(
             profile: profile,
@@ -323,79 +324,41 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         SliverPersistentHeader(
           pinned: true,
           delegate: _ProfileTabsHeaderDelegate(
-            selectedTab: _selectedTab,
-            onSelected: (tab) {
-              if (_selectedTab == tab) return;
-
-              setState(() {
-                _selectedTab = tab;
-              });
-            },
+            controller: _tabController,
           ),
         ),
-        if (selectedItems.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(
-                  emptyMessage,
-                  style: const TextStyle(color: Colors.black54, fontSize: 16),
-                ),
-              ),
-            ),
-          )
-        else
-          SliverToBoxAdapter(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onHorizontalDragEnd: (details) {
-                final velocity = details.primaryVelocity ?? 0;
-                if (velocity.abs() < 250) return;
-                _selectAdjacentTab(velocity < 0 ? 1 : -1);
-              },
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final columns = width >= 900 ? 6 : width >= 600 ? 4 : 3;
-                  return GridView.builder(
-                    padding: const EdgeInsets.all(2),
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: selectedItems.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 2,
-                      mainAxisSpacing: 2,
-                      childAspectRatio: 0.78,
-                    ),
-                    itemBuilder: (context, index) {
-                      final item = selectedItems[index];
-                      return _ProfileMediaTile(
-                        item: item,
-                        viewCount: _viewCounts[item.id] ?? 0,
-                        onTap: () => _openMedia(selectedItems, index),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
       ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _ProfileMediaGrid(
+            items: _posts,
+            viewCounts: _viewCounts,
+            emptyMessage: 'No posts yet.',
+            onOpen: (index) => _openMedia(_posts, index),
+          ),
+          _ProfileMediaGrid(
+            items: _reposts,
+            viewCounts: _viewCounts,
+            emptyMessage: 'No reposts yet.',
+            onOpen: (index) => _openMedia(_reposts, index),
+          ),
+          _ProfileMediaGrid(
+            items: _likedPosts,
+            viewCounts: _viewCounts,
+            emptyMessage: 'No liked posts yet.',
+            onOpen: (index) => _openMedia(_likedPosts, index),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _ProfileTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final _ProfileMediaTab selectedTab;
-  final ValueChanged<_ProfileMediaTab> onSelected;
+  final TabController controller;
 
-  const _ProfileTabsHeaderDelegate({
-    required this.selectedTab,
-    required this.onSelected,
-  });
+  const _ProfileTabsHeaderDelegate({required this.controller});
 
   @override
   double get minExtent => 52;
@@ -412,27 +375,20 @@ class _ProfileTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
     return Material(
       color: Colors.white,
       elevation: overlapsContent ? 1 : 0,
-      child: Container(
+      child: DecoratedBox(
         decoration: const BoxDecoration(
           border: Border(bottom: BorderSide(color: Color(0xFFE5E5E5))),
         ),
-        child: Row(
-          children: [
-            _ProfileTabButton(
-              label: 'Posts',
-              selected: selectedTab == _ProfileMediaTab.posts,
-              onTap: () => onSelected(_ProfileMediaTab.posts),
-            ),
-            _ProfileTabButton(
-              label: 'Reposts',
-              selected: selectedTab == _ProfileMediaTab.reposts,
-              onTap: () => onSelected(_ProfileMediaTab.reposts),
-            ),
-            _ProfileTabButton(
-              label: 'Likes',
-              selected: selectedTab == _ProfileMediaTab.likes,
-              onTap: () => onSelected(_ProfileMediaTab.likes),
-            ),
+        child: TabBar(
+          controller: controller,
+          indicatorColor: Color(0xFF2E7D5B),
+          labelColor: Colors.black,
+          unselectedLabelColor: Colors.black54,
+          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+          tabs: const [
+            Tab(text: 'Posts'),
+            Tab(text: 'Reposts'),
+            Tab(text: 'Likes'),
           ],
         ),
       ),
@@ -441,53 +397,61 @@ class _ProfileTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _ProfileTabsHeaderDelegate oldDelegate) {
-    return oldDelegate.selectedTab != selectedTab;
+    return oldDelegate.controller != controller;
   }
 }
 
-class _ProfileTabButton extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+class _ProfileMediaGrid extends StatelessWidget {
+  final List<MediaItem> items;
+  final Map<String, int> viewCounts;
+  final String emptyMessage;
+  final ValueChanged<int> onOpen;
 
-  const _ProfileTabButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
+  const _ProfileMediaGrid({
+    required this.items,
+    required this.viewCounts,
+    required this.emptyMessage,
+    required this.onOpen,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 52,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Center(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                      color: selected ? Colors.black : Colors.black54,
-                    ),
-                  ),
-                ),
-              ),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                height: 2,
-                width: selected ? 44 : 0,
-                color: selected ? Colors.black : Colors.transparent,
-              ),
-            ],
+    if (items.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            emptyMessage,
+            style: const TextStyle(color: Colors.black54, fontSize: 16),
           ),
         ),
-      ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columns = width >= 900 ? 6 : width >= 600 ? 4 : 3;
+        return GridView.builder(
+          key: PageStorageKey<String>(emptyMessage),
+          padding: const EdgeInsets.all(2),
+          itemCount: items.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+            childAspectRatio: 0.78,
+          ),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _ProfileMediaTile(
+              item: item,
+              viewCount: viewCounts[item.id] ?? 0,
+              onTap: () => onOpen(index),
+            );
+          },
+        );
+      },
     );
   }
 }
