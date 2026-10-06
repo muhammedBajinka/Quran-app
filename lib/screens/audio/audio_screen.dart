@@ -331,12 +331,6 @@ class _MediaSearchView extends StatelessWidget {
                   hintText: 'Search title, speaker, or description',
                   hintStyle: const TextStyle(color: Colors.white60),
                   prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                  suffixIcon: IconButton(
-                    tooltip: 'Search',
-                    color: Colors.white,
-                    onPressed: () => onSearch(controller.text),
-                    icon: const Icon(Icons.arrow_forward),
-                  ),
                   filled: true,
                   fillColor: Colors.white12,
                   border: OutlineInputBorder(
@@ -439,8 +433,8 @@ class _TopNavigation extends StatelessWidget {
       child: Align(
         alignment: Alignment.topCenter,
         child: Container(
-          height: 58,
-          color: Colors.black.withValues(alpha: 0.30),
+          height: 48,
+          color: Colors.black.withValues(alpha: 0.18),
           child: Row(
             children: [
               Expanded(
@@ -480,6 +474,9 @@ class _TopNavigation extends StatelessWidget {
       onPressed: () => onSelected(tab),
       style: TextButton.styleFrom(
         foregroundColor: selected ? Colors.white : Colors.white70,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        minimumSize: const Size(0, 40),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -487,7 +484,8 @@ class _TopNavigation extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              fontSize: 13,
             ),
           ),
           const SizedBox(height: 3),
@@ -534,7 +532,6 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   late final PageController _pageController;
 
   int _currentIndex = 0;
-  double _horizontalDragDistance = 0;
 
   @override
   void initState() {
@@ -592,57 +589,25 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onHorizontalDragStart: (_) {
-        _horizontalDragDistance = 0;
+    return PageView.builder(
+      controller: _pageController,
+      scrollDirection: Axis.vertical,
+      itemCount: widget.items.length,
+      onPageChanged: _pageChanged,
+      itemBuilder: (context, index) {
+        final item = widget.items[index];
+
+        return _MediaFeedPage(
+          key: ValueKey(item.id),
+          item: item,
+          active: index == _currentIndex,
+          audioController: widget.audioController,
+          socialRepository: widget.socialRepository,
+          onCreatorPressed: widget.onCreatorPressed,
+          onSwipeLeft: widget.onSwipeLeft,
+          onSwipeRight: widget.onSwipeRight,
+        );
       },
-      onHorizontalDragUpdate: (details) {
-        _horizontalDragDistance += details.primaryDelta ?? 0;
-      },
-      onHorizontalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-        final distance = _horizontalDragDistance;
-
-        _horizontalDragDistance = 0;
-
-        const distanceThreshold = 35.0;
-        const velocityThreshold = 220.0;
-
-        final swipedLeft =
-            distance <= -distanceThreshold || velocity <= -velocityThreshold;
-        final swipedRight =
-            distance >= distanceThreshold || velocity >= velocityThreshold;
-
-        if (swipedLeft) {
-          widget.onSwipeLeft();
-        } else if (swipedRight) {
-          widget.onSwipeRight();
-        }
-      },
-      onHorizontalDragCancel: () {
-        _horizontalDragDistance = 0;
-      },
-      child: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        itemCount: widget.items.length,
-        onPageChanged: _pageChanged,
-        itemBuilder: (context, index) {
-          final item = widget.items[index];
-
-          return _MediaFeedPage(
-            key: ValueKey(item.id),
-            item: item,
-            active: index == _currentIndex,
-            audioController: widget.audioController,
-            socialRepository: widget.socialRepository,
-            onCreatorPressed: widget.onCreatorPressed,
-            onSwipeLeft: widget.onSwipeLeft,
-            onSwipeRight: widget.onSwipeRight,
-          );
-        },
-      ),
     );
   }
 }
@@ -688,6 +653,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   int _repostCount = 0;
 
   bool _showLikeHeart = false;
+  double _horizontalDragDistance = 0;
 
   double _speed = 1.0;
 
@@ -1296,16 +1262,30 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               behavior: HitTestBehavior.opaque,
               onTap: _tapMedia,
               onDoubleTap: _doubleTapLike,
+              onHorizontalDragStart: (_) {
+                _horizontalDragDistance = 0;
+              },
+              onHorizontalDragUpdate: (details) {
+                _horizontalDragDistance += details.primaryDelta ?? 0;
+              },
               onHorizontalDragEnd: (details) {
                 final velocity = details.primaryVelocity ?? 0;
+                final distance = _horizontalDragDistance;
+                _horizontalDragDistance = 0;
 
-                const threshold = 220.0;
+                const distanceThreshold = 32.0;
+                const velocityThreshold = 180.0;
 
-                if (velocity <= -threshold) {
+                if (distance <= -distanceThreshold ||
+                    velocity <= -velocityThreshold) {
                   widget.onSwipeLeft();
-                } else if (velocity >= threshold) {
+                } else if (distance >= distanceThreshold ||
+                    velocity >= velocityThreshold) {
                   widget.onSwipeRight();
                 }
+              },
+              onHorizontalDragCancel: () {
+                _horizontalDragDistance = 0;
               },
               child: const ColoredBox(color: Colors.transparent),
             ),
