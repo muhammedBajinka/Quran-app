@@ -64,10 +64,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         else
           Future<int>.value(0),
         _socialRepository.getRepostedMediaIds(widget.creatorId),
-        if (_isOwnProfile)
-          _socialRepository.getLikedMediaIds(widget.creatorId)
-        else
-          Future<List<String>>.value(const []),
+        _socialRepository.getLikedMediaIds(widget.creatorId),
       ]);
 
       final posts = results[1] as List<MediaItem>;
@@ -288,10 +285,8 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
 
     final tabs = <({String label, List<MediaItem> items, String empty})>[
       (label: 'Posts', items: _posts, empty: 'No posts yet.'),
-      if (_reposts.isNotEmpty)
-        (label: 'Reposts', items: _reposts, empty: 'No reposts yet.'),
-      if (_likedPosts.isNotEmpty)
-        (label: 'Likes', items: _likedPosts, empty: 'No liked posts yet.'),
+      (label: 'Reposts', items: _reposts, empty: 'No reposts yet.'),
+      (label: 'Likes', items: _likedPosts, empty: 'No liked posts yet.'),
     ];
 
     return DefaultTabController(
