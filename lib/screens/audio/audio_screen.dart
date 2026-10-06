@@ -536,6 +536,8 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   late final PageController _pageController;
 
   int _currentIndex = 0;
+  Offset? _pointerStart;
+  bool _horizontalSwipeHandled = false;
 
   @override
   void initState() {
@@ -591,30 +593,61 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
     super.dispose();
   }
 
+  void _pointerDown(PointerDownEvent event) {
+    _pointerStart = event.position;
+    _horizontalSwipeHandled = false;
+  }
+
+  void _pointerMove(PointerMoveEvent event) {
+    final start = _pointerStart;
+    if (start == null || _horizontalSwipeHandled) return;
+
+    final delta = event.position - start;
+    if (delta.dx.abs() < 56 || delta.dx.abs() <= delta.dy.abs() * 1.25) {
+      return;
+    }
+
+    _horizontalSwipeHandled = true;
+    if (delta.dx < 0) {
+      widget.onSwipeLeft();
+    } else {
+      widget.onSwipeRight();
+    }
+  }
+
+  void _pointerEnd(PointerEvent event) {
+    _pointerStart = null;
+    _horizontalSwipeHandled = false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return PageView.builder(
-      controller: _pageController,
-      scrollDirection: Axis.vertical,
-      itemCount: widget.items.length,
-      onPageChanged: _pageChanged,
-      itemBuilder: (context, index) {
-        final item = widget.items[index];
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: _pointerDown,
+      onPointerMove: _pointerMove,
+      onPointerUp: _pointerEnd,
+      onPointerCancel: _pointerEnd,
+      child: PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        itemCount: widget.items.length,
+        onPageChanged: _pageChanged,
+        itemBuilder: (context, index) {
+          final item = widget.items[index];
 
-        return _MediaFeedPage(
-          key: ValueKey(item.id),
-          item: item,
-          active: index == _currentIndex,
-          audioController: widget.audioController,
-          socialRepository: widget.socialRepository,
-          onCreatorPressed: widget.onCreatorPressed,
-          onSwipeLeft: widget.onSwipeLeft,
-          onSwipeRight: widget.onSwipeRight,
-        );
-      },
+          return _MediaFeedPage(
+            key: ValueKey(item.id),
+            item: item,
+            active: index == _currentIndex,
+            audioController: widget.audioController,
+            socialRepository: widget.socialRepository,
+            onCreatorPressed: widget.onCreatorPressed,
+          );
+        },
+      ),
     );
-  }
-}
+  }}
 
 class _MediaFeedPage extends StatefulWidget {
   final MediaItem item;
@@ -622,8 +655,6 @@ class _MediaFeedPage extends StatefulWidget {
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
   final ValueChanged<String> onCreatorPressed;
-  final VoidCallback onSwipeLeft;
-  final VoidCallback onSwipeRight;
 
   const _MediaFeedPage({
     super.key,
@@ -632,8 +663,6 @@ class _MediaFeedPage extends StatefulWidget {
     required this.audioController,
     required this.socialRepository,
     required this.onCreatorPressed,
-    required this.onSwipeLeft,
-    required this.onSwipeRight,
   });
 
   @override
@@ -657,8 +686,6 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   int _repostCount = 0;
 
   bool _showLikeHeart = false;
-  double _horizontalDragDistance = 0;
-
   double _speed = 1.0;
 
   String? _videoError;
@@ -1266,32 +1293,6 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               behavior: HitTestBehavior.opaque,
               onTap: _tapMedia,
               onDoubleTap: _doubleTapLike,
-              onHorizontalDragStart: (_) {
-                _horizontalDragDistance = 0;
-              },
-              onHorizontalDragUpdate: (details) {
-                _horizontalDragDistance += details.primaryDelta ?? 0;
-              },
-              onHorizontalDragEnd: (details) {
-                final velocity = details.primaryVelocity ?? 0;
-                final distance = _horizontalDragDistance;
-                _horizontalDragDistance = 0;
-
-                final distanceThreshold =
-                    MediaQuery.sizeOf(context).width * 0.18;
-                const velocityThreshold = 650.0;
-
-                if (distance <= -distanceThreshold ||
-                    velocity <= -velocityThreshold) {
-                  widget.onSwipeLeft();
-                } else if (distance >= distanceThreshold ||
-                    velocity >= velocityThreshold) {
-                  widget.onSwipeRight();
-                }
-              },
-              onHorizontalDragCancel: () {
-                _horizontalDragDistance = 0;
-              },
               child: const ColoredBox(color: Colors.transparent),
             ),
           ),
