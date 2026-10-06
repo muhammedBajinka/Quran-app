@@ -1202,6 +1202,11 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       setState(() {
         _following = previous;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sign in with an account to follow creators.'),
+        ),
+      );
     }
   }
 
@@ -1534,6 +1539,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           icon: _liked ? Icons.favorite : Icons.favorite_border,
           label: _compactNumber(_likeCount),
           onPressed: _toggleLike,
+          active: _liked,
         ),
 
         _ActionButton(
@@ -1546,6 +1552,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           icon: _reposted ? Icons.repeat_on_rounded : Icons.repeat_rounded,
           label: _compactNumber(_repostCount),
           onPressed: _toggleRepost,
+          active: _reposted,
         ),
 
         _ActionButton(
@@ -1690,11 +1697,13 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final bool active;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.active = false,
   });
 
   @override
@@ -1720,7 +1729,7 @@ class _ActionButton extends StatelessWidget {
             child: IconButton(
               onPressed: onPressed,
               iconSize: 32,
-              color: Colors.white,
+              color: active ? const Color(0xFF2E7D5B) : Colors.white,
               padding: EdgeInsets.zero,
               visualDensity: VisualDensity.compact,
               icon: Icon(
