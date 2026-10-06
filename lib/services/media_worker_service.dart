@@ -21,6 +21,7 @@ class MediaWorkerService {
     required String title,
     String? description,
     String? speaker,
+    void Function(double progress)? onProgress,
   }) async {
     final session = _supabase.auth.currentSession;
 
@@ -34,7 +35,10 @@ class MediaWorkerService {
       throw StateError('A Google or other real account is required to upload.');
     }
 
-    final request = http.Request('POST', Uri.parse('$_baseUrl/upload'));
+    final request = http.StreamedRequest(
+      'POST',
+      Uri.parse('$_baseUrl/upload'),
+    );
 
     request.headers.addAll({
       'Authorization': 'Bearer ${session.accessToken}',
@@ -56,9 +60,24 @@ class MediaWorkerService {
       request.headers['X-Speaker'] = cleanSpeaker;
     }
 
-    request.bodyBytes = bytes;
+    request.contentLength = bytes.length;
 
-    final streamedResponse = await request.send();
+    final responseFuture = request.send();
+    const chunkSize = 256 * 1024;
+    var sent = 0;
+
+    for (var offset = 0; offset < bytes.length; offset += chunkSize) {
+      final end = (offset + chunkSize < bytes.length)
+          ? offset + chunkSize
+          : bytes.length;
+      request.sink.add(bytes.sublist(offset, end));
+      sent = end;
+      onProgress?.call(sent / bytes.length);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    await request.sink.close();
+    final streamedResponse = await responseFuture;
     final response = await http.Response.fromStream(streamedResponse);
 
     final decoded = jsonDecode(response.body);
