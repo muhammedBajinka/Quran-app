@@ -84,29 +84,18 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     if (_uploading) return;
 
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final files = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: _allowedExtensions,
-        allowMultiple: false,
-        withData: true,
       );
 
-      if (result == null || result.files.isEmpty) {
+      if (files.isEmpty) {
         return;
       }
 
-      final file = result.files.single;
-      final bytes = file.bytes;
+      final file = files.single;
+      final bytes = await file.readAsBytes();
       final mimeType = _mimeTypeForFile(file);
-
-      if (bytes == null) {
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not read the selected file.')),
-        );
-        return;
-      }
 
       if (mimeType == null) {
         if (!mounted) return;
@@ -314,7 +303,10 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
-                                  _formatFileSize(selectedFile.size),
+                                  _formatFileSize(
+                                    selectedFile.lengthSync() ??
+                                        _selectedBytes!.length,
+                                  ),
                                   style: TextStyle(color: Colors.grey.shade600),
                                 ),
                               ],
