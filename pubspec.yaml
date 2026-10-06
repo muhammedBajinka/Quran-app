@@ -47,6 +47,7 @@ dependencies:
   http: ^1.6.0
   image_picker: ^1.2.3
   file_picker: ^13.1.0
+  video_trimmer: ^5.0.0
 
 dev_dependencies:
   flutter_test:

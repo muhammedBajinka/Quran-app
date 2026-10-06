@@ -189,7 +189,7 @@ class MediaRepository {
     return _withSignedThumbnails(_mapRows(rows));
   }
 
-  Future<List<MediaItem>> getOwnPrivatePosts() async {
+  Future<void> publishOwnDraft(String mediaId, {\n    required String title,\n    required String description,\n    required String speaker,\n    required String visibility,\n    required bool publish,\n  }) async {\n    final user = _client.auth.currentUser;\n    if (user == null || user.isAnonymous) throw StateError('Sign in required.');\n\n    final values = <String, dynamic>{\n      'title': title,\n      'description': description.isEmpty ? null : description,\n      'speaker': speaker.isEmpty ? null : speaker,\n      'visibility': publish ? visibility : 'private',\n      'published': publish,\n    };\n    await _client.from('media_content').update(values).eq('id', mediaId).eq('creator_id', user.id);\n  }\n  Future<List<MediaItem>> getOwnPrivatePosts() async {
     final user = _client.auth.currentUser;
     if (user == null || user.isAnonymous) return const [];
 

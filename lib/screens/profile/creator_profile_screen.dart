@@ -216,6 +216,14 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     }
   }
 
+  Future<void> _openDraft(MediaItem item) async {
+    if (!_isOwnProfile) return;
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => EditDraftScreen(item: item)),
+    );
+    if (changed == true && mounted) await _load();
+  }
+
   Future<void> _openMedia(List<MediaItem> items, int initialIndex) async {
     if (items.isEmpty || initialIndex < 0 || initialIndex >= items.length) return;
     await Navigator.of(context).push(
@@ -344,7 +352,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
               onUpload: _openUpload,
             ),
           ),
-          if (_isOwnProfile && CreatorUploadQueue.instance.jobs.isNotEmpty)
+          if (_isOwnProfile && CreatorUploadQueue.instance.jobs.any((job) => job.state != CreatorUploadState.completed))
             SliverToBoxAdapter(
               child: _UploadQueuePanel(
                 jobs: CreatorUploadQueue.instance.jobs,
@@ -366,7 +374,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                 items: tab.items,
                 viewCounts: _viewCounts,
                 emptyMessage: tab.empty,
-                onOpen: (index) => _openMedia(tab.items, index),
+                onOpen: (index) => tab.label == 'Drafts'\n                    ? _openDraft(tab.items[index])\n                    : _openMedia(tab.items, index),
               ),
           ],
         ),
@@ -388,26 +396,56 @@ class _UploadQueuePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFFF7FAF8),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Uploads',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+    final pending = jobs
+        .where((job) => job.state != CreatorUploadState.completed)
+        .toList();
+    if (pending.isEmpty) return const SizedBox.shrink();
+
+    final failed = pending
+        .where((job) => job.state == CreatorUploadState.failed)
+        .length;
+    final label = failed > 0
+        ? 'Uploads · ' + pending.length.toString() + ' · ' + failed.toString() + ' failed'
+        : 'Uploading · ' + pending.length.toString();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: ActionChip(
+          avatar: Icon(
+            failed > 0 ? Icons.error_outline : Icons.cloud_upload_outlined,
+            size: 18,
           ),
-          if (jobs.any((job) => job.isActive)) ...[
+          label: Text(label),
+          onPressed: () => _showDetails(context, pending),
+        ),
+      ),
+    );
+  }
+
+  void _showDetails(BuildContext context, List<CreatorUploadJob> pending) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          children: [
+            const Text(
+              'Uploads',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 4),
             const Text(
-              'Keep Quran Life open while uploads are running. Leaving or closing the app may interrupt them.',
+              'Keep Quran Life open while uploads are running.',
               style: TextStyle(color: Colors.black54, fontSize: 12),
             ),
+            const SizedBox(height: 12),
+            for (final job in pending) _jobTile(job),
           ],
-          const SizedBox(height: 8),
-          for (final job in jobs.take(6)) _jobTile(job),
-        ],
+        ),
       ),
     );
   }
@@ -417,61 +455,42 @@ class _UploadQueuePanel extends StatelessWidget {
     String status;
     switch (job.state) {
       case CreatorUploadState.queued:
-        status = 'Queued';
+        status = 'Waiting';
       case CreatorUploadState.uploading:
-        status = 'Uploading $percent%';
+        status = 'Uploading ' + percent.toString() + '%';
       case CreatorUploadState.finalizing:
-        status = 'Finishing upload';
+        status = 'Finishing';
       case CreatorUploadState.completed:
-        status = job.draft ? 'Saved to Drafts' : 'Posted';
+        status = 'Complete';
       case CreatorUploadState.failed:
         status = job.error ?? 'Upload failed';
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        job.mediaType == 'audio'
+            ? Icons.audio_file_outlined
+            : Icons.video_file_outlined,
+      ),
+      title: Text(job.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.video_file_outlined, size: 28),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(job.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 3),
-                Text(
-                  status,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: job.state == CreatorUploadState.failed
-                        ? Colors.red.shade700
-                        : Colors.black54,
-                    fontSize: 12,
-                  ),
-                ),
-                if (job.state == CreatorUploadState.uploading)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: LinearProgressIndicator(value: job.progress),
-                  ),
-              ],
-            ),
-          ),
-          if (job.state == CreatorUploadState.failed)
-            TextButton(
-              onPressed: () => onRetry(job.localId),
-              child: const Text('Retry'),
-            )
-          else if (job.state == CreatorUploadState.completed)
-            IconButton(
-              tooltip: 'Dismiss',
-              onPressed: () => onDismiss(job.localId),
-              icon: const Icon(Icons.close, size: 20),
+          Text(status, maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (job.state == CreatorUploadState.uploading)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: LinearProgressIndicator(value: job.progress),
             ),
         ],
       ),
+      trailing: job.state == CreatorUploadState.failed
+          ? TextButton(
+              onPressed: () => onRetry(job.localId),
+              child: const Text('Retry'),
+            )
+          : null,
     );
   }
 }
