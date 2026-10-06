@@ -230,17 +230,24 @@ class _CreatorPrivacyScreenState extends State<_CreatorPrivacyScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const ListTile(title: Text('Who can comment', style: TextStyle(fontWeight: FontWeight.w700))),
-            for (final option in const [
-              ('everyone', 'Everyone'),
-              ('followers', 'Followers'),
-              ('no_one', 'No one'),
-            ])
-              RadioListTile<String>(
-                value: option.$1,
-                groupValue: current.commentPermission,
-                title: Text(option.$2),
-                onChanged: (value) => Navigator.of(context).pop(value),
+            RadioGroup<String>(
+              groupValue: current.commentPermission,
+              onChanged: (value) => Navigator.of(context).pop(value),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final option in const [
+                    ('everyone', 'Everyone'),
+                    ('followers', 'Followers'),
+                    ('no_one', 'No one'),
+                  ])
+                    RadioListTile<String>(
+                      value: option.$1,
+                      title: Text(option.$2),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),
