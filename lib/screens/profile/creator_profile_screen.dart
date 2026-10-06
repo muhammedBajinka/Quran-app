@@ -20,8 +20,7 @@ class CreatorProfileScreen extends StatefulWidget {
 
 enum _ProfileMediaTab { posts, reposts, likes }
 
-class _CreatorProfileScreenState extends State<CreatorProfileScreen>
-    with SingleTickerProviderStateMixin {
+class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   final MediaRepository _mediaRepository = MediaRepository();
   final MediaSocialRepository _socialRepository = MediaSocialRepository();
 
@@ -30,8 +29,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen>
   List<MediaItem> _reposts = const [];
   List<MediaItem> _likedPosts = const [];
   Map<String, int> _viewCounts = const {};
-  _ProfileMediaTab _selectedTab = _ProfileMediaTab.posts;
-  late final TabController _tabController;
 
   bool _loading = true;
   bool _following = false;
@@ -46,27 +43,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-      length: _ProfileMediaTab.values.length,
-      vsync: this,
-    );
-    _tabController.addListener(_syncSelectedTab);
     _load();
-  }
-
-  @override
-  void dispose() {
-    _tabController
-      ..removeListener(_syncSelectedTab)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _syncSelectedTab() {
-    if (_tabController.indexIsChanging) return;
-    final tab = _ProfileMediaTab.values[_tabController.index];
-    if (tab == _selectedTab || !mounted) return;
-    setState(() => _selectedTab = tab);
   }
 
   Future<void> _load() async {
@@ -305,60 +282,60 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen>
       );
     }
 
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) => [
-        SliverToBoxAdapter(
-          child: _ProfileHeader(
-            profile: profile,
-            followerCount: _followerCount,
-            followingCount: _followingCount,
-            totalLikes: _totalLikes,
-            isOwnProfile: _isOwnProfile,
-            following: _following,
-            followBusy: _followBusy,
-            onFollowPressed: _toggleFollow,
-            onEditProfile: _openEditProfile,
-            onUpload: _openUpload,
+    final tabs = <({String label, List<MediaItem> items, String empty})>[
+      (label: 'Posts', items: _posts, empty: 'No posts yet.'),
+      if (_reposts.isNotEmpty)
+        (label: 'Reposts', items: _reposts, empty: 'No reposts yet.'),
+      if (_likedPosts.isNotEmpty)
+        (label: 'Likes', items: _likedPosts, empty: 'No liked posts yet.'),
+    ];
+
+    return DefaultTabController(
+      key: ValueKey<String>(tabs.map((tab) => tab.label).join('|')),
+      length: tabs.length,
+      child: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: _ProfileHeader(
+              profile: profile,
+              followerCount: _followerCount,
+              followingCount: _followingCount,
+              totalLikes: _totalLikes,
+              isOwnProfile: _isOwnProfile,
+              following: _following,
+              followBusy: _followBusy,
+              onFollowPressed: _toggleFollow,
+              onEditProfile: _openEditProfile,
+              onUpload: _openUpload,
+            ),
           ),
-        ),
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _ProfileTabsHeaderDelegate(
-            controller: _tabController,
-          ),
-        ),
-      ],
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _ProfileMediaGrid(
-            items: _posts,
-            viewCounts: _viewCounts,
-            emptyMessage: 'No posts yet.',
-            onOpen: (index) => _openMedia(_posts, index),
-          ),
-          _ProfileMediaGrid(
-            items: _reposts,
-            viewCounts: _viewCounts,
-            emptyMessage: 'No reposts yet.',
-            onOpen: (index) => _openMedia(_reposts, index),
-          ),
-          _ProfileMediaGrid(
-            items: _likedPosts,
-            viewCounts: _viewCounts,
-            emptyMessage: 'No liked posts yet.',
-            onOpen: (index) => _openMedia(_likedPosts, index),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _ProfileTabsHeaderDelegate(
+              labels: tabs.map((tab) => tab.label).toList(growable: false),
+            ),
           ),
         ],
+        body: TabBarView(
+          children: [
+            for (final tab in tabs)
+              _ProfileMediaGrid(
+                items: tab.items,
+                viewCounts: _viewCounts,
+                emptyMessage: tab.empty,
+                onOpen: (index) => _openMedia(tab.items, index),
+              ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _ProfileTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
-  final TabController controller;
+  final List<String> labels;
 
-  const _ProfileTabsHeaderDelegate({required this.controller});
+  const _ProfileTabsHeaderDelegate({required this.labels});
 
   @override
   double get minExtent => 52;
@@ -380,16 +357,11 @@ class _ProfileTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
           border: Border(bottom: BorderSide(color: Color(0xFFE5E5E5))),
         ),
         child: TabBar(
-          controller: controller,
-          indicatorColor: Color(0xFF2E7D5B),
+          indicatorColor: const Color(0xFF2E7D5B),
           labelColor: Colors.black,
           unselectedLabelColor: Colors.black54,
           labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-          tabs: const [
-            Tab(text: 'Posts'),
-            Tab(text: 'Reposts'),
-            Tab(text: 'Likes'),
-          ],
+          tabs: [for (final label in labels) Tab(text: label)],
         ),
       ),
     );
@@ -397,7 +369,11 @@ class _ProfileTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _ProfileTabsHeaderDelegate oldDelegate) {
-    return oldDelegate.controller != controller;
+    if (oldDelegate.labels.length != labels.length) return true;
+    for (var i = 0; i < labels.length; i++) {
+      if (oldDelegate.labels[i] != labels[i]) return true;
+    }
+    return false;
   }
 }
 
