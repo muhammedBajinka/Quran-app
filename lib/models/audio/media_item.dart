@@ -10,6 +10,7 @@ class MediaItem {
   final String? audioUrl;
   final String? videoUrl;
   final String? thumbnailUrl;
+  final String? thumbnailPath;
 
   final String? creatorId;
   final DateTime? createdAt;
@@ -17,6 +18,8 @@ class MediaItem {
   final bool pinned;
   final int? pinOrder;
   final bool downloadsEnabled;
+  final String visibility;
+  final bool published;
 
   const MediaItem({
     required this.id,
@@ -27,11 +30,14 @@ class MediaItem {
     this.audioUrl,
     this.videoUrl,
     this.thumbnailUrl,
+    this.thumbnailPath,
     this.creatorId,
     this.createdAt,
     this.pinned = false,
     this.pinOrder,
     this.downloadsEnabled = false,
+    this.visibility = 'public',
+    this.published = true,
   });
 
   bool get hasAudio => audioUrl != null && audioUrl!.trim().isNotEmpty;
@@ -40,4 +46,25 @@ class MediaItem {
 
   bool get hasThumbnail =>
       thumbnailUrl != null && thumbnailUrl!.trim().isNotEmpty;
+
+  MediaItem copyWith({String? thumbnailUrl}) {
+    return MediaItem(
+      id: id,
+      type: type,
+      title: title,
+      speaker: speaker,
+      description: description,
+      audioUrl: audioUrl,
+      videoUrl: videoUrl,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      thumbnailPath: thumbnailPath,
+      creatorId: creatorId,
+      createdAt: createdAt,
+      pinned: pinned,
+      pinOrder: pinOrder,
+      downloadsEnabled: downloadsEnabled,
+      visibility: visibility,
+      published: published,
+    );
+  }
 }

@@ -19,10 +19,13 @@ class MediaRepository {
     media_type,
     media_url,
     thumbnail_url,
+    thumbnail_path,
     creator_id,
     pinned,
     pin_order,
     downloads_enabled,
+    visibility,
+    published,
     created_at
   ''';
 
@@ -34,7 +37,7 @@ class MediaRepository {
         .eq('content_type', type.name)
         .order('created_at', ascending: false);
 
-    return _mapRows(rows);
+    return _withSignedThumbnails(_mapRows(rows));
   }
 
   Future<List<MediaItem>> getAllPublished({
@@ -57,7 +60,7 @@ class MediaRepository {
 
     final rows = await query.order('created_at', ascending: false);
 
-    final items = _mapRows(rows);
+    final items = await _withSignedThumbnails(_mapRows(rows));
 
     if (shuffle) {
       items.shuffle(Random());
@@ -138,7 +141,7 @@ class MediaRepository {
       }
     }
 
-    return _mapRows(rows);
+    return _withSignedThumbnails(_mapRows(rows));
   }
 
   Future<List<MediaItem>> getPublishedMediaByIds(List<String> mediaIds) async {
@@ -152,7 +155,7 @@ class MediaRepository {
         .eq('published', true)
         .inFilter('id', mediaIds);
 
-    final items = _mapRows(rows);
+    final items = await _withSignedThumbnails(_mapRows(rows));
     final itemsById = <String, MediaItem>{
       for (final item in items) item.id: item,
     };
@@ -166,9 +169,55 @@ class MediaRepository {
         .select(_columns)
         .eq('published', true)
         .eq('creator_id', creatorId)
+        .neq('visibility', 'private')
         .order('created_at', ascending: false);
 
-    return _mapRows(rows);
+    return _withSignedThumbnails(_mapRows(rows));
+  }
+
+  Future<List<MediaItem>> getOwnDrafts() async {
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) return const [];
+
+    final rows = await _client
+        .from('media_content')
+        .select(_columns)
+        .eq('creator_id', user.id)
+        .eq('published', false)
+        .order('created_at', ascending: false);
+
+    return _withSignedThumbnails(_mapRows(rows));
+  }
+
+  Future<List<MediaItem>> getOwnPrivatePosts() async {
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) return const [];
+
+    final rows = await _client
+        .from('media_content')
+        .select(_columns)
+        .eq('creator_id', user.id)
+        .eq('published', true)
+        .eq('visibility', 'private')
+        .order('created_at', ascending: false);
+
+    return _withSignedThumbnails(_mapRows(rows));
+  }
+
+  Future<List<MediaItem>> _withSignedThumbnails(List<MediaItem> items) async {
+    return Future.wait(items.map((item) async {
+      final path = item.thumbnailPath?.trim();
+      if (path == null || path.isEmpty) return item;
+
+      try {
+        final signed = await _client.storage
+            .from('media-thumbnails')
+            .createSignedUrl(path, 3600);
+        return item.copyWith(thumbnailUrl: signed);
+      } catch (_) {
+        return item;
+      }
+    }));
   }
 
   List<MediaItem> _mapRows(dynamic rows) {
@@ -190,11 +239,14 @@ class MediaRepository {
       audioUrl: mediaType == 'audio' ? mediaUrl : null,
       videoUrl: mediaType == 'video' ? mediaUrl : null,
       thumbnailUrl: row['thumbnail_url'] as String?,
+      thumbnailPath: row['thumbnail_path'] as String?,
       creatorId: row['creator_id'] as String?,
       createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
       pinned: row['pinned'] as bool? ?? false,
       pinOrder: row['pin_order'] as int?,
       downloadsEnabled: row['downloads_enabled'] as bool? ?? false,
+      visibility: row['visibility'] as String? ?? 'public',
+      published: row['published'] as bool? ?? true,
     );
   }
 
