@@ -24,7 +24,7 @@ Future<Uint8List?> trimVideoFile({
     );
     final outputPath = await completer.future;
     if (outputPath == null || outputPath.isEmpty) return null;
-    return File(outputPath).readAsBytes();
+    return await File(outputPath).readAsBytes();
   } finally {
     trimmer.dispose();
   }

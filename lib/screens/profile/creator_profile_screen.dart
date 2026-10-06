@@ -407,8 +407,8 @@ class _UploadQueuePanel extends StatelessWidget {
         .where((job) => job.state == CreatorUploadState.failed)
         .length;
     final label = failed > 0
-        ? 'Uploads · ' + pending.length.toString() + ' · ' + failed.toString() + ' failed'
-        : 'Uploading · ' + pending.length.toString();
+        ? 'Uploads · ${pending.length} · $failed failed'
+        : 'Uploading · ${pending.length}';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
@@ -459,7 +459,7 @@ class _UploadQueuePanel extends StatelessWidget {
       case CreatorUploadState.queued:
         status = 'Waiting';
       case CreatorUploadState.uploading:
-        status = 'Uploading ' + percent.toString() + '%';
+        status = 'Uploading $percent%';
       case CreatorUploadState.finalizing:
         status = 'Finishing';
       case CreatorUploadState.completed:

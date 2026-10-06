@@ -17,7 +17,6 @@ class UploadMediaScreen extends StatefulWidget {
 }
 
 class _UploadMediaScreenState extends State<UploadMediaScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _speakerController = TextEditingController();
   final _descriptionController = TextEditingController();
