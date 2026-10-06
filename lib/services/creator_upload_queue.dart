@@ -84,8 +84,7 @@ class CreatorUploadQueue extends ChangeNotifier {
     job
       ..state = CreatorUploadState.queued
       ..progress = 0
-      ..error = null
-      ..mediaId = null;
+      ..error = null;
     notifyListeners();
     _process();
   }
@@ -125,32 +124,36 @@ class CreatorUploadQueue extends ChangeNotifier {
   Future<void> _run(CreatorUploadJob job) async {
     job
       ..state = CreatorUploadState.uploading
-      ..progress = 0
+      ..progress = job.mediaId == null ? 0 : 1
       ..error = null;
     notifyListeners();
 
     try {
-      final result = await _worker.uploadMedia(
-        bytes: job.bytes,
-        mimeType: job.mimeType,
-        contentType: job.contentType,
-        mediaType: job.mediaType,
-        title: job.title,
-        description: job.description,
-        speaker: job.speaker,
-        onProgress: (progress) {
-          job.progress = progress.clamp(0.0, 1.0).toDouble();
-          notifyListeners();
-        },
-      );
+      var mediaId = job.mediaId;
 
-      final mediaId = _extractMediaId(result);
       if (mediaId == null) {
-        throw StateError('Upload finished but the media ID was not returned.');
+        final result = await _worker.uploadMedia(
+          bytes: job.bytes,
+          mimeType: job.mimeType,
+          contentType: job.contentType,
+          mediaType: job.mediaType,
+          title: job.title,
+          description: job.description,
+          speaker: job.speaker,
+          onProgress: (progress) {
+            job.progress = progress.clamp(0.0, 1.0).toDouble();
+            notifyListeners();
+          },
+        );
+
+        mediaId = _extractMediaId(result);
+        if (mediaId == null) {
+          throw StateError('Upload finished but the media ID was not returned.');
+        }
+        job.mediaId = mediaId;
       }
 
       job
-        ..mediaId = mediaId
         ..state = CreatorUploadState.finalizing
         ..progress = 1;
       notifyListeners();
@@ -175,16 +178,15 @@ class CreatorUploadQueue extends ChangeNotifier {
         );
       }
 
-      await _supabase
-          .from('media_content')
-          .update({
-            'visibility': job.draft ? 'private' : job.visibility,
-            'published': !job.draft,
-            'thumbnail_path': thumbnailPath,
-            'thumbnail_url': null,
-          })
-          .eq('id', mediaId)
-          .eq('creator_id', _supabase.auth.currentUser!.id);
+      await _supabase.rpc(
+        'finalize_creator_media',
+        params: {
+          'p_id': mediaId,
+          'p_visibility': job.visibility,
+          'p_published': !job.draft,
+          'p_thumbnail_path': thumbnailPath,
+        },
+      );
 
       job.state = CreatorUploadState.completed;
       notifyListeners();
