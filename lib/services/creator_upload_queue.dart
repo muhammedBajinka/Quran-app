@@ -197,18 +197,19 @@ class CreatorUploadQueue extends ChangeNotifier {
   }
 
   String? _extractMediaId(Map<String, dynamic> result) {
-    final direct = result['id']?.toString();
+    final direct =
+        result['mediaId']?.toString() ?? result['id']?.toString();
     if (direct != null && direct.isNotEmpty) return direct;
 
     final media = result['media'];
     if (media is Map) {
-      final id = media['id']?.toString();
+      final id = media['mediaId']?.toString() ?? media['id']?.toString();
       if (id != null && id.isNotEmpty) return id;
     }
 
     final data = result['data'];
     if (data is Map) {
-      final id = data['id']?.toString();
+      final id = data['mediaId']?.toString() ?? data['id']?.toString();
       if (id != null && id.isNotEmpty) return id;
     }
 
