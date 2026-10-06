@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/media_social_repository.dart';
 import '../../services/auth_service.dart';
 
 class CreatorSettingsScreen extends StatefulWidget {
@@ -12,6 +13,7 @@ class CreatorSettingsScreen extends StatefulWidget {
 
 class _CreatorSettingsScreenState extends State<CreatorSettingsScreen> {
   final AuthService _authService = AuthService();
+  final MediaSocialRepository _socialRepository = MediaSocialRepository();
   bool _loggingOut = false;
 
   Future<void> _logOut() async {
@@ -72,6 +74,16 @@ class _CreatorSettingsScreenState extends State<CreatorSettingsScreen> {
     );
   }
 
+  void _openPrivacy() {
+    final user = _authService.currentUser;
+    if (user == null || user.isAnonymous) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _CreatorPrivacyScreen(repository: _socialRepository),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _authService.currentUser;
@@ -103,8 +115,9 @@ class _CreatorSettingsScreenState extends State<CreatorSettingsScreen> {
               _SettingsItem(
                 icon: Icons.lock_outline,
                 title: 'Privacy',
-                subtitle: 'Control what other people can see',
-                onTap: () {},
+                subtitle: 'Likes, reposts, downloads and comments',
+                enabled: hasAccount,
+                onTap: _openPrivacy,
               ),
             ],
           ),
@@ -142,6 +155,182 @@ class _CreatorSettingsScreenState extends State<CreatorSettingsScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _CreatorPrivacyScreen extends StatefulWidget {
+  final MediaSocialRepository repository;
+  const _CreatorPrivacyScreen({required this.repository});
+
+  @override
+  State<_CreatorPrivacyScreen> createState() => _CreatorPrivacyScreenState();
+}
+
+class _CreatorPrivacyScreenState extends State<_CreatorPrivacyScreen> {
+  CreatorPrivacySettings? _settings;
+  bool _loading = true;
+  bool _saving = false;
+  bool _loadFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadFailed = false;
+    });
+    try {
+      final value = await widget.repository.getOwnCreatorPrivacySettings();
+      if (!mounted) return;
+      setState(() {
+        _settings = value;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadFailed = true;
+      });
+    }
+  }
+
+  Future<void> _save(CreatorPrivacySettings next) async {
+    if (_saving) return;
+    final previous = _settings;
+    setState(() {
+      _settings = next;
+      _saving = true;
+    });
+    try {
+      await widget.repository.setOwnCreatorPrivacySettings(next);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _settings = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save that privacy setting. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _chooseComments() async {
+    final current = _settings;
+    if (current == null || _saving) return;
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(title: Text('Who can comment', style: TextStyle(fontWeight: FontWeight.w700))),
+            for (final option in const [
+              ('everyone', 'Everyone'),
+              ('followers', 'Followers'),
+              ('no_one', 'No one'),
+            ])
+              RadioListTile<String>(
+                value: option.$1,
+                groupValue: current.commentPermission,
+                title: Text(option.$2),
+                onChanged: (value) => Navigator.of(context).pop(value),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected != null && selected != current.commentPermission) {
+      await _save(current.copyWith(commentPermission: selected));
+    }
+  }
+
+  String _commentLabel(String value) {
+    if (value == 'followers') return 'Followers';
+    if (value == 'no_one') return 'No one';
+    return 'Everyone';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final value = _settings;
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Privacy', style: TextStyle(fontWeight: FontWeight.w700)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _loadFailed || value == null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Could not load privacy settings.'),
+                      const SizedBox(height: 12),
+                      OutlinedButton(onPressed: _load, child: const Text('Retry')),
+                    ],
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  children: [
+                    const _SectionLabel('Profile activity'),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.favorite_border, color: Color(0xFF2E7D5B)),
+                      title: const Text('Liked posts', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Show your liked posts on your profile'),
+                      value: value.showLikedPosts,
+                      onChanged: _saving ? null : (enabled) => _save(value.copyWith(showLikedPosts: enabled)),
+                    ),
+                    const Divider(height: 1, indent: 64, endIndent: 16),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.repeat_rounded, color: Color(0xFF2E7D5B)),
+                      title: const Text('Reposts', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Show your reposts on your profile'),
+                      value: value.showReposts,
+                      onChanged: _saving ? null : (enabled) => _save(value.copyWith(showReposts: enabled)),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: Text(
+                        'Your following list stays private and cannot be viewed by other people.',
+                        style: TextStyle(color: Colors.black54, fontSize: 13),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const _SectionLabel('Your content'),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.download_outlined, color: Color(0xFF2E7D5B)),
+                      title: const Text('Allow downloads', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Allow people to download your current and future posts'),
+                      value: value.allowDownloads,
+                      onChanged: _saving ? null : (enabled) => _save(value.copyWith(allowDownloads: enabled)),
+                    ),
+                    const Divider(height: 1, indent: 64, endIndent: 16),
+                    ListTile(
+                      enabled: !_saving,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                      leading: const Icon(Icons.chat_bubble_outline, color: Color(0xFF2E7D5B)),
+                      title: const Text('Comments', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(_commentLabel(value.commentPermission)),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _saving ? null : _chooseComments,
+                    ),
+                    if (_saving)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        child: LinearProgressIndicator(),
+                      ),
+                  ],
+                ),
     );
   }
 }
