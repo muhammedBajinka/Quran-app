@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../models/audio/media_item.dart';
 import '../../data/media_repository.dart';
 import '../../services/video_trim_service.dart';
+import '../../widgets/creator_media_editor.dart';
 
 import '../../services/creator_upload_queue.dart';
 
@@ -35,8 +36,7 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   bool _saveAsDraft = false;
   bool _busy = false;
   int _step = 0;
-  final _trimStartController = TextEditingController(text: '0');
-  final _trimEndController = TextEditingController();
+  RangeValues _trimRange = const RangeValues(0, 1);
 
   static const _audioMimeTypes = {
     'mp3': 'audio/mpeg',
@@ -59,8 +59,6 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     _titleController.dispose();
     _speakerController.dispose();
     _descriptionController.dispose();
-    _trimStartController.dispose();
-    _trimEndController.dispose();
     super.dispose();
   }
 
@@ -92,6 +90,8 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
         _selectedFile = file;
         _selectedBytes = bytes;
         _mimeType = mime;
+        _trimRange = const RangeValues(0, 1);
+        _step = 2;
       });
     } catch (_) {
       if (!mounted) return;
@@ -153,28 +153,19 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
 
     setState(() => _busy = true);
     try {
-      if (_mediaType == 'video') {
-        final start = double.tryParse(_trimStartController.text.trim()) ?? 0;
-        final endText = _trimEndController.text.trim();
-        final end = double.tryParse(endText);
-        if (start < 0 || (end != null && end <= start)) {
-          _showMessage('Choose a valid start and end point.');
+      if (_mediaType == 'video' && _trimRange.end > _trimRange.start) {
+        final trimmed = await trimVideoFile(
+          sourcePath: file.path,
+          startMs: _trimRange.start,
+          endMs: _trimRange.end,
+        );
+        if (trimmed == null) {
+          _showMessage(
+            'Could not prepare the trimmed video. Try again on the Android app.',
+          );
           return;
         }
-        if (end != null) {
-          final trimmed = await trimVideoFile(
-            sourcePath: file.path,
-            startMs: start * 1000,
-            endMs: end * 1000,
-          );
-          if (trimmed == null) {
-            _showMessage(
-              'Video trimming is not available here. Try again on the Android app.',
-            );
-            return;
-          }
-          bytes = trimmed;
-        }
+        bytes = trimmed;
       }
 
       CreatorUploadQueue.instance.enqueue(
@@ -256,9 +247,9 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
       case 1:
         return 'Choose media';
       case 2:
-        return 'Choose category';
+        return 'Edit media';
       case 3:
-        return _mediaType == 'video' ? 'Trim video' : 'Post details';
+        return 'Choose category';
       default:
         return 'Post details';
     }
@@ -267,8 +258,8 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   Widget _buildStep() {
     if (_step == 0) return _mediaTypeStep();
     if (_step == 1) return _fileStep();
-    if (_step == 2) return _categoryStep();
-    if (_step == 3 && _mediaType == 'video') return _trimStep();
+    if (_step == 2) return _editorStep();
+    if (_step == 3) return _categoryStep();
     return _detailsStep();
   }
 
@@ -334,69 +325,45 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     );
   }
 
-  Widget _trimStep() {
-    return _stepShell(
-      title: 'Choose the part you want to post',
-      subtitle:
-          'Set the start and end in seconds. Leave End empty to keep the video to the end.',
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F7F5),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.movie_outlined,
-                  size: 34,
-                  color: Color(0xFF2E7D5B),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _selectedFile?.name ?? 'Selected video',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+  Widget _editorStep() {
+    final bytes = _selectedBytes;
+    final mime = _mimeType;
+    if (bytes == null || mime == null) return _fileStep();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 30),
+      children: [
+        Text(
+          _mediaType == 'video' ? 'Edit your video' : 'Edit your audio',
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Preview it here and drag the handles to choose the part you want to post.',
+          style: TextStyle(color: Colors.black54),
+        ),
+        const SizedBox(height: 18),
+        CreatorMediaEditor(
+          bytes: bytes,
+          mediaType: _mediaType,
+          mimeType: mime,
+          sourcePath: _selectedFile?.path,
+          trim: _trimRange,
+          onTrimChanged: (range) {
+            if (mounted) setState(() => _trimRange = range);
+          },
+        ),
+        const SizedBox(height: 20),
+        OutlinedButton.icon(
+          onPressed: _pickMedia,
+          icon: const Icon(Icons.swap_horiz),
+          label: Text(
+            _mediaType == 'video' ? 'Choose another video' : 'Choose another audio',
           ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _trimStartController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Start (seconds)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _trimEndController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'End (seconds)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      onNext: _nextStep,
+        ),
+        const SizedBox(height: 12),
+        FilledButton(onPressed: _nextStep, child: const Text('Next')),
+      ],
     );
   }
 
