@@ -36,7 +36,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   bool _following = false;
   bool _followBusy = false;
   int _followerCount = 0;
-  int _followingCount = 0;
   int _postCount = 0;
   int _totalLikes = 0;
   int _totalReposts = 0;
@@ -89,10 +88,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         else
           Future<bool>.value(false),
         _socialRepository.getFollowerCount(widget.creatorId),
-        if (_isOwnProfile)
-          _socialRepository.getOwnFollowingCount()
-        else
-          Future<int>.value(0),
         _socialRepository.getRepostedMediaIds(widget.creatorId),
         _socialRepository.getLikedMediaIds(widget.creatorId),
         if (_isOwnProfile)
@@ -107,11 +102,11 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
       ]);
 
       final posts = results[1] as List<MediaItem>;
-      final repostIds = results[5] as List<String>;
-      final likedIds = results[6] as List<String>;
-      final drafts = results[7] as List<MediaItem>;
-      final privatePosts = results[8] as List<MediaItem>;
-      final mediaStats = results[9] as CreatorMediaStats;
+      final repostIds = results[4] as List<String>;
+      final likedIds = results[5] as List<String>;
+      final drafts = results[6] as List<MediaItem>;
+      final privatePosts = results[7] as List<MediaItem>;
+      final mediaStats = results[8] as CreatorMediaStats;
 
       final mediaResults = await Future.wait([
         _mediaRepository.getPublishedMediaByIds(repostIds),
@@ -148,7 +143,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         _viewCounts = viewsByMediaId;
         _following = results[2] as bool;
         _followerCount = results[3] as int;
-        _followingCount = results[4] as int;
         _postCount = mediaStats.postCount;
         _totalLikes = mediaStats.totalLikeCount;
         _totalReposts = mediaStats.totalRepostCount;
