@@ -251,14 +251,14 @@ class MediaSocialRepository {
     return (count as num).toInt();
   }
 
-  /// Returns the number of likes for a Media post.
+  /// Returns the number of likes without exposing individual like rows.
   Future<int> getLikeCount(String mediaId) async {
-    final rows = await _client
-        .from('media_likes')
-        .select('id')
-        .eq('media_id', mediaId);
+    final count = await _client.rpc(
+      'get_media_like_count',
+      params: {'p_media_id': mediaId},
+    );
 
-    return (rows as List<dynamic>).length;
+    return (count as num).toInt();
   }
 
   /// Adds the current user's like.
