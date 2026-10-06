@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'anonymous_install_service.dart';
@@ -16,16 +17,31 @@ class FeedbackService {
        _installService = installService ?? AnonymousInstallService(),
        _appInfoService = appInfoService ?? AppInfoService();
 
+  String get _platform {
+    if (kIsWeb) return 'web';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.iOS:
+        return 'ios';
+      case TargetPlatform.macOS:
+        return 'macos';
+      case TargetPlatform.windows:
+        return 'windows';
+      case TargetPlatform.linux:
+        return 'linux';
+      case TargetPlatform.fuchsia:
+        return 'fuchsia';
+    }
+  }
+
   Future<void> submit({
     required String category,
     required String message,
   }) async {
     final trimmedMessage = message.trim();
-
     if (trimmedMessage.isEmpty || trimmedMessage.length > 1000) {
-      throw ArgumentError(
-        'Feedback must contain between 1 and 1000 characters.',
-      );
+      throw ArgumentError('Feedback must contain between 1 and 1000 characters.');
     }
 
     final installId = await _installService.getInstallId();
@@ -37,7 +53,7 @@ class FeedbackService {
       'message': trimmedMessage,
       'app_version': appInfo.version,
       'build_number': appInfo.buildNumber,
-      'platform': 'android',
+      'platform': _platform,
       'status': 'new',
     });
   }
