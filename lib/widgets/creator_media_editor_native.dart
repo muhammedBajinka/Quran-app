@@ -79,7 +79,14 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
     if (current < _trim.start || current >= _trim.end) await _seek(_trim.start);
     if (widget.mediaType == 'video') { await _video?.play(); } else { await _audio?.resume(); }
   }
-  void _changeTrim(RangeValues value) { setState(() => _trim = value); widget.onTrimChanged(value); _seek(value.start); }
+  void _changeTrim(RangeValues value) {
+    final startMoved = (value.start - _trim.start).abs();
+    final endMoved = (value.end - _trim.end).abs();
+    setState(() => _trim = value);
+    widget.onTrimChanged(value);
+    // Scrub the preview to the handle the creator is actively moving.
+    _seek(startMoved >= endMoved ? value.start : value.end);
+  }
   String _time(double ms) {
     final seconds = (ms / 1000).round(); final minutes = seconds ~/ 60; final remainder = seconds % 60;
     return '$minutes:${remainder.toString().padLeft(2, '0')}';
@@ -94,7 +101,16 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
       Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(18), child: Container(width: double.infinity, color: const Color(0xFF111111), child: widget.mediaType == 'video' ? _videoPreview() : _audioPreview()))),
       const SizedBox(height: 10),
       Row(children: [IconButton.filled(onPressed: _toggle, icon: Icon(_playing ? Icons.pause : Icons.play_arrow)), const SizedBox(width: 8), Text(_time(_trim.start)), const Spacer(), Text('${_time(_trim.end)} · ${_time(_trim.end - _trim.start)} selected')]),
-      RangeSlider(values: _trim, min: 0, max: _durationMs, labels: RangeLabels(_time(_trim.start), _time(_trim.end)), onChanged: _changeTrim),
+      SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: 6,
+          rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 11),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+          activeTrackColor: const Color(0xFF2E7D5B),
+          thumbColor: const Color(0xFF2E7D5B),
+        ),
+        child: RangeSlider(values: _trim, min: 0, max: _durationMs, labels: RangeLabels(_time(_trim.start), _time(_trim.end)), onChanged: _changeTrim),
+      ),
       const Text('Drag either end to choose exactly what will be uploaded.', style: TextStyle(color: Colors.black54, fontSize: 12)),
     ]);
   }
