@@ -297,6 +297,21 @@ class MediaSocialRepository {
         .eq('auth_user_id', userId);
   }
 
+  Future<CreatorMediaStats> getCreatorMediaStats(String creatorId) async {
+    final rows = await _client.rpc(
+      'get_creator_media_stats',
+      params: {'p_creator_id': creatorId},
+    );
+
+    if (rows is! List || rows.isEmpty) {
+      return const CreatorMediaStats();
+    }
+
+    return CreatorMediaStats.fromMap(
+      Map<String, dynamic>.from(rows.first as Map),
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // CREATOR PRIVACY
   // ---------------------------------------------------------------------------
@@ -624,6 +639,26 @@ class MediaSocialRepository {
 
       rethrow;
     }
+  }
+}
+
+class CreatorMediaStats {
+  final int postCount;
+  final int totalLikeCount;
+  final int totalRepostCount;
+
+  const CreatorMediaStats({
+    this.postCount = 0,
+    this.totalLikeCount = 0,
+    this.totalRepostCount = 0,
+  });
+
+  factory CreatorMediaStats.fromMap(Map<String, dynamic> row) {
+    return CreatorMediaStats(
+      postCount: (row['post_count'] as num?)?.toInt() ?? 0,
+      totalLikeCount: (row['total_like_count'] as num?)?.toInt() ?? 0,
+      totalRepostCount: (row['total_repost_count'] as num?)?.toInt() ?? 0,
+    );
   }
 }
 
