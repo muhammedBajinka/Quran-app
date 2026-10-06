@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -17,6 +18,7 @@ class CreatorMediaEditor extends StatefulWidget {
 
 class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
   VideoPlayerController? _video;
+  AudioPlayer? _audio;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   bool _playing = false;
@@ -27,11 +29,29 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
   @override void initState() { super.initState(); _initialise(); }
 
   Future<void> _initialise() async {
-    if (widget.mediaType != 'video') {
-      setState(() => _error = 'Audio preview is currently available in the Android app.');
-      return;
-    }
     try {
+      if (widget.mediaType == 'audio') {
+        final player = AudioPlayer();
+        _audio = player;
+        await player.setSource(BytesSource(widget.bytes, mimeType: widget.mimeType));
+        _duration = (await player.getDuration()) ?? Duration.zero;
+        player.onPositionChanged.listen((value) {
+          if (!mounted) return;
+          _position = value;
+          if (_durationMs > 0 && _position.inMilliseconds >= _trim.end) {
+            player.pause();
+            player.seek(Duration(milliseconds: _trim.start.round()));
+          }
+          setState(() {});
+        });
+        player.onPlayerStateChanged.listen((state) {
+          if (mounted) setState(() => _playing = state == PlayerState.playing);
+        });
+        _trim = RangeValues(0, _durationMs <= 0 ? 1 : _durationMs);
+        widget.onTrimChanged(_trim);
+        if (mounted) setState(() {});
+        return;
+      }
       final controller = VideoPlayerController.networkUrl(
         Uri.dataFromBytes(widget.bytes, mimeType: widget.mimeType),
       );
@@ -43,7 +63,7 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
       widget.onTrimChanged(_trim);
       if (mounted) setState(() {});
     } catch (_) {
-      if (mounted) setState(() => _error = 'This video could not be previewed in the browser.');
+      if (mounted) setState(() => _error = 'This media could not be previewed in the browser.');
     }
   }
 
@@ -60,6 +80,20 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
   }
 
   Future<void> _toggle() async {
+    if (widget.mediaType == 'audio') {
+      final player = _audio;
+      if (player == null) return;
+      if (_playing) {
+        await player.pause();
+        return;
+      }
+      final current = _position.inMilliseconds.toDouble();
+      if (current < _trim.start || current >= _trim.end) {
+        await player.seek(Duration(milliseconds: _trim.start.round()));
+      }
+      await player.resume();
+      return;
+    }
     final controller = _video;
     if (controller == null) return;
     if (controller.value.isPlaying) { await controller.pause(); return; }
@@ -71,9 +105,17 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
   }
 
   void _changeTrim(RangeValues value) {
+    final startMoved = (value.start - _trim.start).abs();
+    final endMoved = (value.end - _trim.end).abs();
+    final seekMs = startMoved >= endMoved ? value.start : value.end;
     setState(() => _trim = value);
     widget.onTrimChanged(value);
-    _video?.seekTo(Duration(milliseconds: value.start.round()));
+    final target = Duration(milliseconds: seekMs.round());
+    if (widget.mediaType == 'audio') {
+      _audio?.seek(target);
+    } else {
+      _video?.seekTo(target);
+    }
   }
 
   String _time(double ms) {
@@ -81,23 +123,42 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
     return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
   }
 
-  @override void dispose() { _video?.removeListener(_tick); _video?.dispose(); super.dispose(); }
+  @override void dispose() { _video?.removeListener(_tick); _video?.dispose(); _audio?.dispose(); super.dispose(); }
 
   @override Widget build(BuildContext context) {
     if (_error != null) return SizedBox.expand(child: Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center))));
-    if (_durationMs <= 0 || _video == null) return const SizedBox.expand(child: Center(child: CircularProgressIndicator()));
+    if (_durationMs <= 0 || (widget.mediaType == 'video' && _video == null) || (widget.mediaType == 'audio' && _audio == null)) return const SizedBox.expand(child: Center(child: CircularProgressIndicator()));
     return Column(children: [
       Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(18), child: Container(
         width: double.infinity,
         color: const Color(0xFF111111),
-        child: Stack(fit: StackFit.expand, children: [
-          Center(child: AspectRatio(aspectRatio: _video!.value.aspectRatio > 0 ? _video!.value.aspectRatio : 9 / 16, child: VideoPlayer(_video!))),
-          Center(child: IconButton.filledTonal(onPressed: _toggle, iconSize: 34, icon: Icon(_playing ? Icons.pause : Icons.play_arrow))),
-        ]),
+        child: widget.mediaType == 'video'
+            ? Stack(fit: StackFit.expand, children: [
+                Center(child: AspectRatio(aspectRatio: _video!.value.aspectRatio > 0 ? _video!.value.aspectRatio : 9 / 16, child: VideoPlayer(_video!))),
+                Center(child: IconButton.filledTonal(onPressed: _toggle, iconSize: 34, icon: Icon(_playing ? Icons.pause : Icons.play_arrow))),
+              ])
+            : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.graphic_eq, color: Colors.white, size: 70),
+                const SizedBox(height: 16),
+                const Text('Audio preview', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(_time(_position.inMilliseconds.toDouble()), style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 12),
+                IconButton.filledTonal(onPressed: _toggle, iconSize: 34, icon: Icon(_playing ? Icons.pause : Icons.play_arrow)),
+              ]),
       ))),
       const SizedBox(height: 10),
       Row(children: [IconButton.filled(onPressed: _toggle, icon: Icon(_playing ? Icons.pause : Icons.play_arrow)), const SizedBox(width: 8), Text(_time(_trim.start)), const Spacer(), Text('${_time(_trim.end)} · ${_time(_trim.end - _trim.start)} selected')]),
-      RangeSlider(values: _trim, min: 0, max: _durationMs, labels: RangeLabels(_time(_trim.start), _time(_trim.end)), onChanged: _changeTrim),
+      SliderTheme(
+        data: SliderTheme.of(context).copyWith(
+          trackHeight: 6,
+          rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 11),
+          overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+          activeTrackColor: const Color(0xFF2E7D5B),
+          thumbColor: const Color(0xFF2E7D5B),
+        ),
+        child: RangeSlider(values: _trim, min: 0, max: _durationMs, labels: RangeLabels(_time(_trim.start), _time(_trim.end)), onChanged: _changeTrim),
+      ),
       const Text('Drag either end to choose exactly what will be uploaded.', style: TextStyle(color: Colors.black54, fontSize: 12)),
     ]);
   }
