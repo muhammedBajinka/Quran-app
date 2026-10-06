@@ -175,9 +175,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     }
 
     final uploaded = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => const UploadMediaScreen(),
-      ),
+      MaterialPageRoute<bool>(builder: (_) => const UploadMediaScreen()),
     );
 
     if (uploaded == true && mounted) {
@@ -246,6 +244,15 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           const Icon(Icons.cloud_off_outlined, size: 48, color: Colors.black45),
           const SizedBox(height: 16),
           const Center(child: Text('Could not load this profile.')),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SelectableText(
+              _error.toString(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, color: Colors.red),
+            ),
+          ),
           const SizedBox(height: 12),
           Center(
             child: FilledButton(
