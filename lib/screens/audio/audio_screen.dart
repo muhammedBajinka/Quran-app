@@ -122,6 +122,7 @@ class _AudioScreenState extends State<AudioScreen> {
 
     setState(() {
       _selectedTab = tab;
+      _currentVisibleItem = null;
       _load();
     });
   }
@@ -142,22 +143,21 @@ class _AudioScreenState extends State<AudioScreen> {
     _MediaFeedTab.forYou,
   ];
 
-  void _selectPreviousTab() {
+  void _swipeLeft() {
     final index = _tabOrder.indexOf(_selectedTab);
 
+    // The tabs are rendered Other ... For You from left to right.
+    // A left swipe therefore moves one tab left repeatedly. Only after the
+    // left-most tab does another left swipe transition to the creator.
     if (index > 0) {
       _selectTab(_tabOrder[index - 1]);
+    } else {
+      _openCurrentCreatorProfile();
     }
   }
 
-  void _selectNextTab() {
-    if (_selectedTab == _MediaFeedTab.forYou) {
-      _openCurrentCreatorProfile();
-      return;
-    }
-
+  void _swipeRight() {
     final index = _tabOrder.indexOf(_selectedTab);
-
     if (index >= 0 && index < _tabOrder.length - 1) {
       _selectTab(_tabOrder[index + 1]);
     }
@@ -250,8 +250,8 @@ class _AudioScreenState extends State<AudioScreen> {
                 items: items,
                 audioController: widget.audioController,
                 socialRepository: _socialRepository,
-                onSwipeLeft: _selectNextTab,
-                onSwipeRight: _selectPreviousTab,
+                onSwipeLeft: _swipeLeft,
+                onSwipeRight: _swipeRight,
                 onCurrentItemChanged: _currentItemChanged,
                 onCreatorPressed: _openCreatorProfile,
               );
@@ -262,6 +262,7 @@ class _AudioScreenState extends State<AudioScreen> {
             selectedTab: _selectedTab,
             onSelected: _selectTab,
             onSearch: _openSearch,
+            onRefresh: _refresh,
           ),
         ],
       ),
@@ -414,11 +415,13 @@ class _TopNavigation extends StatelessWidget {
   final _MediaFeedTab selectedTab;
   final ValueChanged<_MediaFeedTab> onSelected;
   final VoidCallback onSearch;
+  final Future<void> Function() onRefresh;
 
   const _TopNavigation({
     required this.selectedTab,
     required this.onSelected,
     required this.onSearch,
+    required this.onRefresh,
   });
 
   @override
@@ -448,6 +451,12 @@ class _TopNavigation extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+              IconButton(
+                tooltip: 'Refresh Media',
+                color: Colors.white,
+                onPressed: () => onRefresh(),
+                icon: const Icon(Icons.refresh_rounded),
               ),
               IconButton(
                 tooltip: 'Search',
@@ -1268,8 +1277,9 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
                 final distance = _horizontalDragDistance;
                 _horizontalDragDistance = 0;
 
-                const distanceThreshold = 32.0;
-                const velocityThreshold = 180.0;
+                final distanceThreshold =
+                    MediaQuery.sizeOf(context).width * 0.18;
+                const velocityThreshold = 650.0;
 
                 if (distance <= -distanceThreshold ||
                     velocity <= -velocityThreshold) {
