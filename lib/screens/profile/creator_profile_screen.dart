@@ -426,28 +426,43 @@ class _UploadQueuePanel extends StatelessWidget {
     );
   }
 
-  void _showDetails(BuildContext context, List<CreatorUploadJob> pending) {
+  void _showDetails(BuildContext context, List<CreatorUploadJob> _) {
+    final queue = CreatorUploadQueue.instance;
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          children: [
-            const Text(
-              'Uploads',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+      builder: (sheetContext) => AnimatedBuilder(
+        animation: queue,
+        builder: (context, _) {
+          final pending = queue.jobs
+              .where((job) => job.state != CreatorUploadState.completed)
+              .toList(growable: false);
+          return SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              children: [
+                const Text(
+                  'Uploads',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'You can follow upload progress here. If an upload fails, retry it or dismiss it.',
+                  style: TextStyle(color: Colors.black54, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                if (pending.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text('No pending uploads.'),
+                  )
+                else
+                  for (final job in pending) _jobTile(job),
+              ],
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'You can follow upload progress here. If an upload fails, retry it or dismiss it.',
-              style: TextStyle(color: Colors.black54, fontSize: 12),
-            ),
-            const SizedBox(height: 12),
-            for (final job in pending) _jobTile(job),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

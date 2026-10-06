@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -14,15 +13,10 @@ Future<Uint8List?> trimVideoFile({
   final trimmer = Trimmer();
   try {
     await trimmer.loadVideo(videoFile: File(sourcePath));
-    final completer = Completer<String?>();
-    await trimmer.saveTrimmedVideo(
+    final outputPath = await trimmer.saveTrimmedVideo(
       startValue: startMs,
       endValue: endMs,
-      onSave: (outputPath) {
-        if (!completer.isCompleted) completer.complete(outputPath);
-      },
     );
-    final outputPath = await completer.future;
     if (outputPath == null || outputPath.isEmpty) return null;
     return await File(outputPath).readAsBytes();
   } finally {
