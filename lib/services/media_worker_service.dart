@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -30,6 +31,14 @@ class MediaWorkerService {
     }
 
     final user = session.user;
+
+    debugPrint('[UPLOAD] Starting Worker upload');
+    debugPrint('[UPLOAD] User ID: ${user.id}');
+    debugPrint('[UPLOAD] Anonymous: ${user.isAnonymous}');
+    debugPrint('[UPLOAD] Bytes: ${bytes.length}');
+    debugPrint('[UPLOAD] MIME: $mimeType');
+    debugPrint('[UPLOAD] Content type: $contentType');
+    debugPrint('[UPLOAD] Media type: $mediaType');
 
     if (user.isAnonymous) {
       throw StateError('A Google or other real account is required to upload.');
@@ -62,6 +71,7 @@ class MediaWorkerService {
 
     request.contentLength = bytes.length;
 
+    debugPrint('[UPLOAD] Sending request to $_baseUrl/upload');
     final responseFuture = request.send();
     const chunkSize = 256 * 1024;
     var sent = 0;
@@ -77,20 +87,47 @@ class MediaWorkerService {
     }
 
     await request.sink.close();
-    final streamedResponse = await responseFuture;
-    final response = await http.Response.fromStream(streamedResponse);
+    try {
+      final streamedResponse = await responseFuture;
+      debugPrint('[UPLOAD] Worker HTTP status: ${streamedResponse.statusCode}');
 
-    final decoded = jsonDecode(response.body);
+      final response = await http.Response.fromStream(streamedResponse);
+      debugPrint('[UPLOAD] Worker response body: ${response.body}');
 
-    if (decoded is! Map<String, dynamic>) {
-      throw StateError('Invalid response from media server.');
+      dynamic decoded;
+      try {
+        decoded = jsonDecode(response.body);
+      } catch (error, stackTrace) {
+        debugPrint('[UPLOAD] Invalid Worker JSON: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        throw StateError(
+          'Worker HTTP ${response.statusCode}: invalid response body.',
+        );
+      }
+
+      if (decoded is! Map<String, dynamic>) {
+        throw StateError(
+          'Worker HTTP ${response.statusCode}: invalid response from media server.',
+        );
+      }
+
+      if (response.statusCode != 201) {
+        final workerError =
+            decoded['error']?.toString() ??
+            decoded['message']?.toString() ??
+            'Media upload failed.';
+        throw StateError(
+          'Worker HTTP ${response.statusCode}: $workerError',
+        );
+      }
+
+      debugPrint('[UPLOAD] Worker upload succeeded.');
+      return decoded;
+    } catch (error, stackTrace) {
+      debugPrint('[UPLOAD] FAILURE: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
     }
-
-    if (response.statusCode != 201) {
-      throw StateError(decoded['error']?.toString() ?? 'Media upload failed.');
-    }
-
-    return decoded;
   }
 
   Future<Map<String, dynamic>> testAuthentication() async {
