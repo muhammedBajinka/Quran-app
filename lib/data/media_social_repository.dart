@@ -188,13 +188,12 @@ class MediaSocialRepository {
   // LIKES
   // ---------------------------------------------------------------------------
 
-  /// Returns media IDs liked by this profile, newest first.
+  /// Returns profile likes through the privacy-safe public RPC.
   Future<List<String>> getLikedMediaIds(String userId) async {
-    final rows = await _client
-        .from('media_likes')
-        .select('media_id, created_at')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
+    final rows = await _client.rpc(
+      'get_profile_liked_media_ids',
+      params: {'p_user_id': userId},
+    );
 
     return (rows as List<dynamic>)
         .map((row) => row['media_id']?.toString())
@@ -290,6 +289,52 @@ class MediaSocialRepository {
         .delete()
         .eq('media_id', mediaId)
         .eq('auth_user_id', userId);
+  }
+
+  // ---------------------------------------------------------------------------
+  // CREATOR PRIVACY
+  // ---------------------------------------------------------------------------
+
+  Future<CreatorPrivacySettings> getOwnCreatorPrivacySettings() async {
+    final user = currentUser;
+    if (user == null || user.isAnonymous) {
+      throw StateError('Creator account required');
+    }
+
+    await ensureCurrentUserProfile();
+
+    final row = await _client
+        .from('creator_privacy_settings')
+        .select(
+          'show_liked_posts, show_reposts, allow_downloads, comment_permission',
+        )
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (row == null) {
+      return const CreatorPrivacySettings();
+    }
+
+    return CreatorPrivacySettings.fromMap(Map<String, dynamic>.from(row));
+  }
+
+  Future<void> setOwnCreatorPrivacySettings(
+    CreatorPrivacySettings settings,
+  ) async {
+    final user = currentUser;
+    if (user == null || user.isAnonymous) {
+      throw StateError('Creator account required');
+    }
+
+    await _client.rpc(
+      'set_creator_privacy',
+      params: {
+        'p_show_liked_posts': settings.showLikedPosts,
+        'p_show_reposts': settings.showReposts,
+        'p_allow_downloads': settings.allowDownloads,
+        'p_comment_permission': settings.commentPermission,
+      },
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -573,6 +618,43 @@ class MediaSocialRepository {
 
       rethrow;
     }
+  }
+}
+
+class CreatorPrivacySettings {
+  final bool showLikedPosts;
+  final bool showReposts;
+  final bool allowDownloads;
+  final String commentPermission;
+
+  const CreatorPrivacySettings({
+    this.showLikedPosts = true,
+    this.showReposts = true,
+    this.allowDownloads = false,
+    this.commentPermission = 'everyone',
+  });
+
+  CreatorPrivacySettings copyWith({
+    bool? showLikedPosts,
+    bool? showReposts,
+    bool? allowDownloads,
+    String? commentPermission,
+  }) {
+    return CreatorPrivacySettings(
+      showLikedPosts: showLikedPosts ?? this.showLikedPosts,
+      showReposts: showReposts ?? this.showReposts,
+      allowDownloads: allowDownloads ?? this.allowDownloads,
+      commentPermission: commentPermission ?? this.commentPermission,
+    );
+  }
+
+  factory CreatorPrivacySettings.fromMap(Map<String, dynamic> row) {
+    return CreatorPrivacySettings(
+      showLikedPosts: row['show_liked_posts'] as bool? ?? true,
+      showReposts: row['show_reposts'] as bool? ?? true,
+      allowDownloads: row['allow_downloads'] as bool? ?? false,
+      commentPermission: row['comment_permission'] as String? ?? 'everyone',
+    );
   }
 }
 
