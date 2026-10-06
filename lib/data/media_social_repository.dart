@@ -120,14 +120,20 @@ class MediaSocialRepository {
   ///
   /// follower_id must equal auth.uid(), which matches the RLS policy.
   Future<void> follow(String creatorId) async {
-    final userId = currentUserId;
+    final user = currentUser;
 
-    if (userId == null || userId == creatorId) {
+    if (user == null || user.isAnonymous) {
+      throw StateError('Account required to follow creators');
+    }
+
+    if (user.id == creatorId) {
       return;
     }
 
+    await ensureCurrentUserProfile();
+
     await _client.from('follows').insert({
-      'follower_id': userId,
+      'follower_id': user.id,
       'following_id': creatorId,
     });
   }
