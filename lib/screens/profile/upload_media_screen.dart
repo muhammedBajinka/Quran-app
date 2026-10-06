@@ -37,6 +37,7 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   bool _busy = false;
   int _step = 0;
   RangeValues _trimRange = const RangeValues(0, 1);
+  bool _trimEdited = false;
 
   static const _audioMimeTypes = {
     'mp3': 'audio/mpeg',
@@ -91,6 +92,7 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
         _selectedBytes = bytes;
         _mimeType = mime;
         _trimRange = const RangeValues(0, 1);
+        _trimEdited = false;
         _step = 2;
       });
     } catch (_) {
@@ -153,7 +155,9 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
 
     setState(() => _busy = true);
     try {
-      if (_mediaType == 'video' && _trimRange.end > _trimRange.start) {
+      if (_mediaType == 'video' &&
+          _trimEdited &&
+          _trimRange.end > _trimRange.start) {
         final trimmed = await trimVideoFile(
           sourcePath: file.path,
           startMs: _trimRange.start,
@@ -161,7 +165,7 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
         );
         if (trimmed == null) {
           _showMessage(
-            'Could not prepare the trimmed video. Try again on the Android app.',
+            'Could not prepare the selected trim. Adjust the handles and try again.',
           );
           return;
         }
@@ -353,7 +357,12 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
               sourcePath: _selectedFile?.path,
               trim: _trimRange,
               onTrimChanged: (range) {
-                if (mounted) setState(() => _trimRange = range);
+                if (mounted) {
+                  setState(() {
+                    _trimRange = range;
+                    _trimEdited = true;
+                  });
+                }
               },
             ),
           ),

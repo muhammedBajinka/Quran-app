@@ -54,7 +54,6 @@ class _CreatorMediaEditorState extends State<CreatorMediaEditor> {
       }
       final end = _durationMs <= 0 ? 1.0 : _durationMs;
       _trim = RangeValues(0, end);
-      widget.onTrimChanged(_trim);
       if (mounted) setState(() {});
     } catch (_) {
       if (mounted) setState(() => _error = 'This media could not be previewed. Choose another file and try again.');

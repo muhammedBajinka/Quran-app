@@ -1399,16 +1399,25 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           ? controller.value.aspectRatio
           : 9 / 16;
 
-      return SizedBox.expand(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          clipBehavior: Clip.hardEdge,
-          child: SizedBox(
-            width: aspectRatio,
-            height: 1,
-            child: VideoPlayer(controller),
-          ),
-        ),
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final boxRatio = constraints.maxWidth / constraints.maxHeight;
+          final width = aspectRatio > boxRatio
+              ? constraints.maxHeight * aspectRatio
+              : constraints.maxWidth;
+          final height = aspectRatio > boxRatio
+              ? constraints.maxHeight
+              : constraints.maxWidth / aspectRatio;
+          return ClipRect(
+            child: Center(
+              child: SizedBox(
+                width: width,
+                height: height,
+                child: VideoPlayer(controller),
+              ),
+            ),
+          );
+        },
       );
     }
 

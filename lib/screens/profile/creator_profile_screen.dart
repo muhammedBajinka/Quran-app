@@ -441,7 +441,7 @@ class _UploadQueuePanel extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Keep Quran Life open while uploads are running.',
+              'You can follow upload progress here. If an upload fails, retry it or dismiss it.',
               style: TextStyle(color: Colors.black54, fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -488,9 +488,19 @@ class _UploadQueuePanel extends StatelessWidget {
         ],
       ),
       trailing: job.state == CreatorUploadState.failed
-          ? TextButton(
-              onPressed: () => onRetry(job.localId),
-              child: const Text('Retry'),
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: () => onRetry(job.localId),
+                  child: const Text('Retry'),
+                ),
+                IconButton(
+                  tooltip: 'Dismiss failed upload',
+                  onPressed: () => onDismiss(job.localId),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
             )
           : null,
     );
