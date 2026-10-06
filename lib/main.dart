@@ -217,11 +217,13 @@ class _QuranHomePageState extends State<QuranHomePage> {
         ];
 
         return Scaffold(
-          appBar: AppBar(
-            title: Text(_titles[_selectedIndex]),
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-          ),
+          appBar: _selectedIndex == 3
+              ? null
+              : AppBar(
+                  title: Text(_titles[_selectedIndex]),
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.white,
+                ),
           body: pages[_selectedIndex],
           bottomNavigationBar: NavigationBarTheme(
             data: const NavigationBarThemeData(
