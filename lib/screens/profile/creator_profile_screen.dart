@@ -36,8 +36,9 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   bool _following = false;
   bool _followBusy = false;
   int _followerCount = 0;
-  int _followingCount = 0;
+  int _postCount = 0;
   int _totalLikes = 0;
+  int _totalReposts = 0;
   Object? _error;
 
   bool get _isOwnProfile => _socialRepository.currentUserId == widget.creatorId;
@@ -87,10 +88,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         else
           Future<bool>.value(false),
         _socialRepository.getFollowerCount(widget.creatorId),
-        if (_isOwnProfile)
-          _socialRepository.getOwnFollowingCount()
-        else
-          Future<int>.value(0),
         _socialRepository.getRepostedMediaIds(widget.creatorId),
         _socialRepository.getLikedMediaIds(widget.creatorId),
         if (_isOwnProfile)
@@ -101,13 +98,15 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           _mediaRepository.getOwnPrivatePosts()
         else
           Future<List<MediaItem>>.value(const []),
+        _socialRepository.getCreatorMediaStats(widget.creatorId),
       ]);
 
       final posts = results[1] as List<MediaItem>;
-      final repostIds = results[5] as List<String>;
-      final likedIds = results[6] as List<String>;
-      final drafts = results[7] as List<MediaItem>;
-      final privatePosts = results[8] as List<MediaItem>;
+      final repostIds = results[4] as List<String>;
+      final likedIds = results[5] as List<String>;
+      final drafts = results[6] as List<MediaItem>;
+      final privatePosts = results[7] as List<MediaItem>;
+      final mediaStats = results[8] as CreatorMediaStats;
 
       final mediaResults = await Future.wait([
         _mediaRepository.getPublishedMediaByIds(repostIds),
@@ -116,10 +115,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
 
       final reposts = mediaResults[0];
       final likedPosts = mediaResults[1];
-
-      final likeCounts = await Future.wait(
-        posts.map((item) => _socialRepository.getLikeCount(item.id)),
-      );
 
       final allVisibleItems = <String, MediaItem>{
         for (final item in posts) item.id: item,
@@ -136,11 +131,6 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
           allVisibleItems[i].id: viewCounts[i],
       };
 
-      final totalLikes = likeCounts.fold<int>(
-        0,
-        (total, count) => total + count,
-      );
-
       if (!mounted) return;
 
       setState(() {
@@ -153,8 +143,9 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
         _viewCounts = viewsByMediaId;
         _following = results[2] as bool;
         _followerCount = results[3] as int;
-        _followingCount = results[4] as int;
-        _totalLikes = totalLikes;
+        _postCount = mediaStats.postCount;
+        _totalLikes = mediaStats.totalLikeCount;
+        _totalReposts = mediaStats.totalRepostCount;
         _loading = false;
       });
     } catch (error) {
@@ -342,8 +333,9 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
             child: _ProfileHeader(
               profile: profile,
               followerCount: _followerCount,
-              followingCount: _followingCount,
+              postCount: _postCount,
               totalLikes: _totalLikes,
+              totalReposts: _totalReposts,
               isOwnProfile: _isOwnProfile,
               following: _following,
               followBusy: _followBusy,
@@ -587,8 +579,9 @@ class _ProfileMediaGrid extends StatelessWidget {
 class _ProfileHeader extends StatelessWidget {
   final CreatorProfile profile;
   final int followerCount;
-  final int followingCount;
+  final int postCount;
   final int totalLikes;
+  final int totalReposts;
   final bool isOwnProfile;
   final bool following;
   final bool followBusy;
@@ -599,8 +592,9 @@ class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.profile,
     required this.followerCount,
-    required this.followingCount,
+    required this.postCount,
     required this.totalLikes,
+    required this.totalReposts,
     required this.isOwnProfile,
     required this.following,
     required this.followBusy,
@@ -681,12 +675,11 @@ class _ProfileHeader extends StatelessWidget {
           ],
           const SizedBox(height: 20),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _ProfileStat(value: '$followingCount', label: 'Following'),
-              const SizedBox(width: 44),
+              _ProfileStat(value: '$postCount', label: 'Posts'),
               _ProfileStat(value: '$followerCount', label: 'Followers'),
-              const SizedBox(width: 44),
+              _ProfileStat(value: '$totalReposts', label: 'Reposts'),
               _ProfileStat(value: '$totalLikes', label: 'Likes'),
             ],
           ),

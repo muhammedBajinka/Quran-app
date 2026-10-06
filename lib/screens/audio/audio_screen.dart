@@ -250,8 +250,8 @@ class _AudioScreenState extends State<AudioScreen> {
                 items: items,
                 audioController: widget.audioController,
                 socialRepository: _socialRepository,
-                onSwipeLeft: _selectPreviousTab,
-                onSwipeRight: _selectNextTab,
+                onSwipeLeft: _selectNextTab,
+                onSwipeRight: _selectPreviousTab,
                 onCurrentItemChanged: _currentItemChanged,
                 onCreatorPressed: _openCreatorProfile,
               );
@@ -308,36 +308,31 @@ class _MediaSearchView extends StatelessWidget {
                     icon: const Icon(Icons.arrow_back),
                   ),
                   const SizedBox(width: 4),
-                  const Text(
-                    'Search Media',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      autofocus: true,
+                      style: const TextStyle(color: Colors.white),
+                      textInputAction: TextInputAction.search,
+                      onChanged: onSearch,
+                      onSubmitted: onSearch,
+                      decoration: InputDecoration(
+                        hintText: 'Search media',
+                        hintStyle: const TextStyle(color: Colors.white60),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.white70,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white12,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
                     ),
                   ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: TextField(
-                controller: controller,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                textInputAction: TextInputAction.search,
-                onSubmitted: onSearch,
-                decoration: InputDecoration(
-                  hintText: 'Search title, speaker, or description',
-                  hintStyle: const TextStyle(color: Colors.white60),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white70),
-                  filled: true,
-                  fillColor: Colors.white12,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
               ),
             ),
             Expanded(child: _buildResults(context)),
@@ -1390,14 +1385,20 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         );
       }
 
-      final aspectRatio = controller.value.aspectRatio > 0
-          ? controller.value.aspectRatio
-          : 9 / 16;
+      final size = controller.value.size;
+      if (size.width <= 0 || size.height <= 0) {
+        return VideoPlayer(controller);
+      }
 
-      return Center(
-        child: AspectRatio(
-          aspectRatio: aspectRatio,
-          child: VideoPlayer(controller),
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: size.width,
+            height: size.height,
+            child: VideoPlayer(controller),
+          ),
         ),
       );
     }
@@ -1558,15 +1559,24 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          '@$creatorName',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            shadows: [Shadow(blurRadius: 5, color: Colors.black)],
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.item.creatorId == null
+              ? null
+              : () => widget.onCreatorPressed(widget.item.creatorId!),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              '@$creatorName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                shadows: [Shadow(blurRadius: 5, color: Colors.black)],
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 5),
