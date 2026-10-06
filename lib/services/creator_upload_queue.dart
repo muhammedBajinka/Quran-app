@@ -74,7 +74,13 @@ class CreatorUploadQueue extends ChangeNotifier {
   }
 
   void retry(String localId) {
-    final job = _jobs.where((item) => item.localId == localId).firstOrNull;
+    CreatorUploadJob? job;
+    for (final item in _jobs) {
+      if (item.localId == localId) {
+        job = item;
+        break;
+      }
+    }
     if (job == null || job.state != CreatorUploadState.failed) return;
 
     job
