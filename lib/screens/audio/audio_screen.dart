@@ -1385,18 +1385,17 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         );
       }
 
-      final size = controller.value.size;
-      if (size.width <= 0 || size.height <= 0) {
-        return VideoPlayer(controller);
-      }
+      final aspectRatio = controller.value.aspectRatio > 0
+          ? controller.value.aspectRatio
+          : 9 / 16;
 
       return SizedBox.expand(
         child: FittedBox(
           fit: BoxFit.cover,
           clipBehavior: Clip.hardEdge,
           child: SizedBox(
-            width: size.width,
-            height: size.height,
+            width: aspectRatio,
+            height: 1,
             child: VideoPlayer(controller),
           ),
         ),
