@@ -51,11 +51,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : '$message\n\n$downloadUrl';
 
       await SharePlus.instance.share(ShareParams(text: shareText));
-    } catch (error) {
+    } catch (_) {
       messenger.showSnackBar(
-        SnackBar(
-          content: Text('Share error: $error'),
-          duration: const Duration(seconds: 10),
+        const SnackBar(
+          content: Text('Quran Life could not be shared right now. Try again.'),
         ),
       );
     }
@@ -484,15 +483,14 @@ class _FeedbackPageState extends State<_FeedbackPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thank you. Your feedback was sent.')),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Feedback error: $error'),
-          duration: const Duration(seconds: 10),
+        const SnackBar(
+          content: Text('Feedback could not be sent right now. Try again.'),
         ),
       );
     } finally {
