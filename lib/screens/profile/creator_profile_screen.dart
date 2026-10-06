@@ -18,8 +18,6 @@ class CreatorProfileScreen extends StatefulWidget {
   State<CreatorProfileScreen> createState() => _CreatorProfileScreenState();
 }
 
-enum _ProfileMediaTab { posts, reposts, likes }
-
 class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   final MediaRepository _mediaRepository = MediaRepository();
   final MediaSocialRepository _socialRepository = MediaSocialRepository();
