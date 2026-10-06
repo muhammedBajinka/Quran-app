@@ -147,24 +147,22 @@ class MediaSocialRepository {
         .eq('following_id', creatorId);
   }
 
-  /// Returns the number of people following a creator.
+  /// Returns the public aggregate follower count without exposing follow rows.
   Future<int> getFollowerCount(String creatorId) async {
-    final rows = await _client
-        .from('follows')
-        .select('follower_id')
-        .eq('following_id', creatorId);
-
-    return (rows as List<dynamic>).length;
+    final count = await _client.rpc(
+      'get_follower_count',
+      params: {'p_user_id': creatorId},
+    );
+    return (count as num).toInt();
   }
 
-  /// Returns the number of creators this profile follows.
-  Future<int> getFollowingCount(String creatorId) async {
-    final rows = await _client
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', creatorId);
+  /// Returns the signed-in user's private following count.
+  Future<int> getOwnFollowingCount() async {
+    final user = currentUser;
+    if (user == null || user.isAnonymous) return 0;
 
-    return (rows as List<dynamic>).length;
+    final count = await _client.rpc('get_own_following_count');
+    return (count as num).toInt();
   }
 
   /// Returns the IDs of creators followed by the current user.
@@ -370,13 +368,12 @@ class MediaSocialRepository {
   // REPOSTS
   // ---------------------------------------------------------------------------
 
-  /// Returns media IDs reposted by this profile, newest first.
+  /// Returns public reposted media IDs without exposing repost identity rows.
   Future<List<String>> getRepostedMediaIds(String userId) async {
-    final rows = await _client
-        .from('media_reposts')
-        .select('media_id, created_at')
-        .eq('user_id', userId)
-        .order('created_at', ascending: false);
+    final rows = await _client.rpc(
+      'get_profile_reposted_media_ids',
+      params: {'p_user_id': userId},
+    );
 
     return (rows as List<dynamic>)
         .map((row) => row['media_id']?.toString())
@@ -402,12 +399,11 @@ class MediaSocialRepository {
   }
 
   Future<int> getRepostCount(String mediaId) async {
-    final rows = await _client
-        .from('media_reposts')
-        .select('id')
-        .eq('media_id', mediaId);
-
-    return (rows as List<dynamic>).length;
+    final count = await _client.rpc(
+      'get_media_repost_count',
+      params: {'p_media_id': mediaId},
+    );
+    return (count as num).toInt();
   }
 
   Future<void> repost(String mediaId) async {
