@@ -3,6 +3,10 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../models/audio/media_item.dart';
+import '../../data/media_repository.dart';
+import '../../services/video_trim_service.dart';
+
 import '../../services/creator_upload_queue.dart';
 
 class UploadMediaScreen extends StatefulWidget {
@@ -31,6 +35,9 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   String _visibility = 'public';
   bool _saveAsDraft = false;
   bool _busy = false;
+  int _step = 0;
+  final _trimStartController = TextEditingController(text: '0');
+  final _trimEndController = TextEditingController();
 
   static const _audioMimeTypes = {
     'mp3': 'audio/mpeg',
@@ -53,6 +60,8 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     _titleController.dispose();
     _speakerController.dispose();
     _descriptionController.dispose();
+    _trimStartController.dispose();
+    _trimEndController.dispose();
     super.dispose();
   }
 
@@ -129,143 +138,553 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     });
   }
 
-  void _queueUpload() {
-    if (_busy || !(_formKey.currentState?.validate() ?? false)) return;
+  Future<void> _queueUpload() async {
+    if (_busy) return;
     final file = _selectedFile;
-    final bytes = _selectedBytes;
+    var bytes = _selectedBytes;
     final mime = _mimeType;
-
     if (file == null || bytes == null || mime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose a media file first.')),
-      );
+      _showMessage('Choose a media file first.');
+      return;
+    }
+    if (_titleController.text.trim().isEmpty) {
+      _showMessage('Enter a title.');
       return;
     }
 
     setState(() => _busy = true);
+    try {
+      if (_mediaType == 'video') {
+        final start = double.tryParse(_trimStartController.text.trim()) ?? 0;
+        final endText = _trimEndController.text.trim();
+        final end = double.tryParse(endText);
+        if (start < 0 || (end != null && end <= start)) {
+          _showMessage('Choose a valid start and end point.');
+          return;
+        }
+        if (end != null) {
+          final trimmed = await trimVideoFile(
+            sourcePath: file.path,
+            startMs: start * 1000,
+            endMs: end * 1000,
+          );
+          if (trimmed == null) {
+            _showMessage(
+              'Video trimming is not available here. Try again on the Android app.',
+            );
+            return;
+          }
+          bytes = trimmed;
+        }
+      }
 
-    CreatorUploadQueue.instance.enqueue(
-      CreatorUploadJob(
-        localId: DateTime.now().microsecondsSinceEpoch.toString(),
-        fileName: file.name,
-        bytes: bytes,
-        mimeType: mime,
-        contentType: _contentType,
-        mediaType: _mediaType,
+      CreatorUploadQueue.instance.enqueue(
+        CreatorUploadJob(
+          localId: DateTime.now().microsecondsSinceEpoch.toString(),
+          fileName: file.name,
+          bytes: bytes,
+          mimeType: mime,
+          contentType: _contentType,
+          mediaType: _mediaType,
+          title: _titleController.text.trim(),
+          description: _descriptionController.text.trim(),
+          speaker: _speakerController.text.trim(),
+          visibility: _visibility,
+          draft: _saveAsDraft,
+          thumbnailBytes: _thumbnailBytes,
+          thumbnailMimeType: _thumbnailMimeType,
+        ),
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Your upload is processing and should be ready in a few minutes.',
+          ),
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _nextStep() {
+    if (_step == 1 && _selectedFile == null) {
+      _showMessage('Choose a media file first.');
+      return;
+    }
+    setState(() => _step++);
+  }
+
+  void _previousStep() {
+    if (_step == 0) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() => _step--);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _previousStep();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: _previousStep,
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: Text(_stepTitle),
+        ),
+        body: SafeArea(child: _buildStep()),
+      ),
+    );
+  }
+
+  String get _stepTitle {
+    switch (_step) {
+      case 0:
+        return 'Create';
+      case 1:
+        return 'Choose media';
+      case 2:
+        return 'Choose category';
+      case 3:
+        return _mediaType == 'video' ? 'Trim video' : 'Post details';
+      default:
+        return 'Post details';
+    }
+  }
+
+  Widget _buildStep() {
+    if (_step == 0) return _mediaTypeStep();
+    if (_step == 1) return _fileStep();
+    if (_step == 2) return _categoryStep();
+    if (_step == 3 && _mediaType == 'video') return _trimStep();
+    return _detailsStep();
+  }
+
+  Widget _mediaTypeStep() {
+    return _stepShell(
+      title: 'What do you want to share?',
+      child: Column(
+        children: [
+          _choiceTile(
+            label: 'Video',
+            icon: Icons.videocam_outlined,
+            selected: _mediaType == 'video',
+            onTap: () => _changeMediaType('video'),
+          ),
+          _choiceTile(
+            label: 'Audio',
+            icon: Icons.audiotrack_outlined,
+            selected: _mediaType == 'audio',
+            onTap: () => _changeMediaType('audio'),
+          ),
+        ],
+      ),
+      onNext: _nextStep,
+    );
+  }
+
+  Widget _fileStep() {
+    return _stepShell(
+      title: _mediaType == 'video' ? 'Choose your video' : 'Choose your audio',
+      child: OutlinedButton.icon(
+        onPressed: _pickMedia,
+        icon: const Icon(Icons.upload_file_outlined),
+        label: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Text(_selectedFile?.name ?? 'Choose file'),
+        ),
+      ),
+      onNext: _selectedFile == null ? null : _nextStep,
+    );
+  }
+
+  Widget _categoryStep() {
+    const categories = [
+      ('recitation', 'Recitation', Icons.menu_book_outlined),
+      ('dua', 'Dua', Icons.volunteer_activism_outlined),
+      ('sermon', 'Sermon', Icons.mic_none_outlined),
+      ('other', 'Other', Icons.more_horiz),
+    ];
+    return _stepShell(
+      title: 'What type of content is this?',
+      child: Column(
+        children: [
+          for (final item in categories)
+            _choiceTile(
+              label: item.$2,
+              icon: item.$3,
+              selected: _contentType == item.$1,
+              onTap: () => setState(() => _contentType = item.$1),
+            ),
+        ],
+      ),
+      onNext: _nextStep,
+    );
+  }
+
+  Widget _trimStep() {
+    return _stepShell(
+      title: 'Choose the part you want to post',
+      subtitle:
+          'Set the start and end in seconds. Leave End empty to keep the video to the end.',
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F7F5),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.movie_outlined,
+                  size: 34,
+                  color: Color(0xFF2E7D5B),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _selectedFile?.name ?? 'Selected video',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _trimStartController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Start (seconds)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _trimEndController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'End (seconds)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      onNext: _nextStep,
+    );
+  }
+
+  Widget _detailsStep() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
+      children: [
+        const Text(
+          'Finish your post',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: _titleController,
+          maxLength: 120,
+          decoration: const InputDecoration(
+            labelText: 'Title',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _speakerController,
+          maxLength: 100,
+          decoration: const InputDecoration(
+            labelText: 'Speaker or reciter (optional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _descriptionController,
+          maxLength: 500,
+          minLines: 3,
+          maxLines: 6,
+          decoration: const InputDecoration(
+            labelText: 'Description (optional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: _pickThumbnail,
+          icon: const Icon(Icons.image_outlined),
+          label: Text(
+            _thumbnailName == null
+                ? 'Choose cover image'
+                : 'Cover: $_thumbnailName',
+          ),
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          initialValue: _visibility,
+          decoration: const InputDecoration(
+            labelText: 'Who can see this?',
+            border: OutlineInputBorder(),
+          ),
+          items: const [
+            DropdownMenuItem(value: 'public', child: Text('Everyone')),
+            DropdownMenuItem(
+              value: 'followers',
+              child: Text('Followers only'),
+            ),
+            DropdownMenuItem(value: 'private', child: Text('Only me')),
+          ],
+          onChanged: _saveAsDraft
+              ? null
+              : (value) =>
+                    setState(() => _visibility = value ?? _visibility),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Save as draft'),
+          subtitle: const Text('Only you can see it until you post it.'),
+          value: _saveAsDraft,
+          onChanged: (value) => setState(() => _saveAsDraft = value),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: _busy ? null : _queueUpload,
+          child: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Upload'),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepShell({
+    required String title,
+    String? subtitle,
+    required Widget child,
+    required VoidCallback? onNext,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Text(subtitle, style: const TextStyle(color: Colors.black54)),
+          ],
+          const SizedBox(height: 24),
+          child,
+          const Spacer(),
+          FilledButton(onPressed: onNext, child: const Text('Next')),
+        ],
+      ),
+    );
+  }
+
+  Widget _choiceTile({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: selected ? const Color(0xFFE7F1EC) : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: selected
+                ? const Color(0xFF2E7D5B)
+                : const Color(0xFFE0E0E0),
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Icon(icon, color: const Color(0xFF2E7D5B), size: 30),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (selected)
+                  const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF2E7D5B),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class EditDraftScreen extends StatefulWidget {
+  final MediaItem item;
+
+  const EditDraftScreen({super.key, required this.item});
+
+  @override
+  State<EditDraftScreen> createState() => _EditDraftScreenState();
+}
+
+class _EditDraftScreenState extends State<EditDraftScreen> {
+  final MediaRepository _repository = MediaRepository();
+  late final TextEditingController _titleController =
+      TextEditingController(text: widget.item.title);
+  late final TextEditingController _speakerController =
+      TextEditingController(text: widget.item.speaker ?? '');
+  late final TextEditingController _descriptionController =
+      TextEditingController(text: widget.item.description ?? '');
+  late String _visibility =
+      widget.item.visibility == 'private' ? 'public' : widget.item.visibility;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _speakerController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save({required bool publish}) async {
+    if (_busy || _titleController.text.trim().isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      await _repository.updateOwnDraft(
+        widget.item.id,
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         speaker: _speakerController.text.trim(),
         visibility: _visibility,
-        draft: _saveAsDraft,
-        thumbnailBytes: _thumbnailBytes,
-        thumbnailMimeType: _thumbnailMimeType,
-      ),
-    );
-
-    Navigator.of(context).pop(true);
+        publish: publish,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update this draft.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('New upload')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
-          children: [
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'audio', label: Text('Audio'), icon: Icon(Icons.audiotrack)),
-                ButtonSegment(value: 'video', label: Text('Video'), icon: Icon(Icons.videocam_outlined)),
-              ],
-              selected: {_mediaType},
-              onSelectionChanged: (value) => _changeMediaType(value.first),
+      appBar: AppBar(title: const Text('Edit draft')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          TextField(
+            controller: _titleController,
+            maxLength: 120,
+            decoration: const InputDecoration(
+              labelText: 'Title',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 18),
-            OutlinedButton.icon(
-              onPressed: _pickMedia,
-              icon: const Icon(Icons.upload_file_outlined),
-              label: Text(_selectedFile?.name ?? 'Choose media file'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _speakerController,
+            maxLength: 100,
+            decoration: const InputDecoration(
+              labelText: 'Speaker or reciter',
+              border: OutlineInputBorder(),
             ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: _pickThumbnail,
-              icon: const Icon(Icons.image_outlined),
-              label: Text(
-                _thumbnailName == null
-                    ? 'Choose cover image'
-                    : 'Cover: $_thumbnailName',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _descriptionController,
+            minLines: 3,
+            maxLines: 6,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              labelText: 'Description',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _visibility,
+            decoration: const InputDecoration(
+              labelText: 'Who can see this after posting?',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'public', child: Text('Everyone')),
+              DropdownMenuItem(
+                value: 'followers',
+                child: Text('Followers only'),
               ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'The cover is what people see on your profile before opening the media.',
-              style: TextStyle(color: Colors.black54, fontSize: 12),
-            ),
-            const SizedBox(height: 18),
-            DropdownButtonFormField<String>(
-              initialValue: _contentType,
-              decoration: const InputDecoration(labelText: 'Content type', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'recitation', child: Text('Recitation')),
-                DropdownMenuItem(value: 'dua', child: Text('Dua')),
-                DropdownMenuItem(value: 'sermon', child: Text('Sermon')),
-                DropdownMenuItem(value: 'other', child: Text('Other')),
-              ],
-              onChanged: (value) => setState(() => _contentType = value ?? _contentType),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _titleController,
-              maxLength: 120,
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'Enter a title.' : null,
-              decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _speakerController,
-              maxLength: 100,
-              decoration: const InputDecoration(labelText: 'Speaker or reciter (optional)', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _descriptionController,
-              maxLength: 500,
-              minLines: 3,
-              maxLines: 6,
-              decoration: const InputDecoration(labelText: 'Description (optional)', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _visibility,
-              decoration: const InputDecoration(labelText: 'Who can see this?', border: OutlineInputBorder()),
-              items: const [
-                DropdownMenuItem(value: 'public', child: Text('Everyone')),
-                DropdownMenuItem(value: 'followers', child: Text('Followers only')),
-                DropdownMenuItem(value: 'private', child: Text('Only me')),
-              ],
-              onChanged: _saveAsDraft
-                  ? null
-                  : (value) => setState(() => _visibility = value ?? _visibility),
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Save as draft'),
-              subtitle: const Text('Upload it now, but do not publish it yet. Only you can see drafts.'),
-              value: _saveAsDraft,
-              onChanged: (value) => setState(() => _saveAsDraft = value),
-            ),
-            const SizedBox(height: 10),
-            FilledButton.icon(
-              onPressed: _busy ? null : _queueUpload,
-              icon: const Icon(Icons.add_to_queue_rounded),
-              label: Text(_saveAsDraft ? 'Add draft to queue' : 'Add to upload queue'),
-            ),
-          ],
-        ),
+              DropdownMenuItem(value: 'private', child: Text('Only me')),
+            ],
+            onChanged: (value) =>
+                setState(() => _visibility = value ?? _visibility),
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton(
+            onPressed: _busy ? null : () => _save(publish: false),
+            child: const Text('Save changes'),
+          ),
+          const SizedBox(height: 10),
+          FilledButton(
+            onPressed: _busy ? null : () => _save(publish: true),
+            child: const Text('Post'),
+          ),
+        ],
       ),
     );
   }
