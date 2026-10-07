@@ -16,6 +16,7 @@ class UploadMediaScreen extends StatefulWidget {
 }
 
 class _UploadMediaScreenState extends State<UploadMediaScreen> {
+  static bool _mediaPickerOpen = false;
   final _titleController = TextEditingController();
   final _speakerController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -76,7 +77,9 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   }
 
   Future<void> _pickMedia() async {
-    if (_busy) return;
+    // FilePicker cannot reliably handle overlapping picker requests.
+    if (_busy || _mediaPickerOpen) return;
+    _mediaPickerOpen = true;
     try {
       final files = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -98,13 +101,16 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the media picker.')),
+        const SnackBar(content: Text('Could not open the media picker. Please try again.')),
       );
+    } finally {
+      _mediaPickerOpen = false;
     }
   }
 
   Future<void> _pickThumbnail() async {
-    if (_busy) return;
+    if (_busy || _mediaPickerOpen) return;
+    _mediaPickerOpen = true;
     try {
       final files = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -126,6 +132,8 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open the image picker.')),
       );
+    } finally {
+      _mediaPickerOpen = false;
     }
   }
 
