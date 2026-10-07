@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'media_worker_service.dart';
 
-enum CreatorUploadState { queued, uploading, finalizing, completed, failed }
+enum CreatorUploadState { queued, uploading, finalizing, completed, failed, needsReview }
 
 class CreatorUploadJob {
   final String localId;
@@ -24,6 +24,7 @@ class CreatorUploadJob {
   double progress;
   String? error;
   String? mediaId;
+  bool uploadAttempted = false;
 
   CreatorUploadJob({
     required this.localId,
@@ -44,6 +45,9 @@ class CreatorUploadJob {
     this.error,
     this.mediaId,
   });
+
+  bool get canRetry =>
+      state == CreatorUploadState.failed && mediaId != null;
 
   bool get isActive =>
       state == CreatorUploadState.queued ||
@@ -79,7 +83,7 @@ class CreatorUploadQueue extends ChangeNotifier {
         break;
       }
     }
-    if (job == null || job.state != CreatorUploadState.failed) return;
+    if (job == null || !job.canRetry) return;
 
     job
       ..state = CreatorUploadState.queued
@@ -94,7 +98,8 @@ class CreatorUploadQueue extends ChangeNotifier {
       (job) =>
           job.localId == localId &&
           (job.state == CreatorUploadState.completed ||
-              job.state == CreatorUploadState.failed),
+              job.state == CreatorUploadState.failed ||
+              job.state == CreatorUploadState.needsReview),
     );
     notifyListeners();
   }
@@ -132,6 +137,8 @@ class CreatorUploadQueue extends ChangeNotifier {
       var mediaId = job.mediaId;
 
       if (mediaId == null) {
+        // Once a request might have reached R2, never blindly upload it again.
+        job.uploadAttempted = true;
         final result = await _worker.uploadMedia(
           bytes: job.bytes,
           mimeType: job.mimeType,
@@ -191,9 +198,15 @@ class CreatorUploadQueue extends ChangeNotifier {
       job.state = CreatorUploadState.completed;
       notifyListeners();
     } catch (error) {
-      job
-        ..state = CreatorUploadState.failed
-        ..error = _friendlyError(error);
+      if (job.uploadAttempted && job.mediaId == null) {
+        job
+          ..state = CreatorUploadState.needsReview
+          ..error = 'Upload result uncertain. Check your posts before selecting the file again. Retry is disabled to prevent duplicate R2 uploads.';
+      } else {
+        job
+          ..state = CreatorUploadState.failed
+          ..error = _friendlyError(error);
+      }
       notifyListeners();
     }
   }
