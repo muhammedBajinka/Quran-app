@@ -56,6 +56,14 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   };
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _pickMedia();
+    });
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _speakerController.dispose();
@@ -63,15 +71,12 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
     super.dispose();
   }
 
-  List<String> get _allowedExtensions =>
-      (_mediaType == 'audio' ? _audioMimeTypes : _videoMimeTypes)
-          .keys
-          .toList();
+  static const _allowedExtensions = ['mp3', 'm4a', 'mp4', 'webm'];
 
   String? _mediaMime(PlatformFile file) {
     final extension = file.extension?.toLowerCase();
     if (extension == null) return null;
-    return (_mediaType == 'audio' ? _audioMimeTypes : _videoMimeTypes)[extension];
+    return _audioMimeTypes[extension] ?? _videoMimeTypes[extension];
   }
 
   Future<void> _pickMedia() async {
@@ -91,9 +96,10 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
         _selectedFile = file;
         _selectedBytes = bytes;
         _mimeType = mime;
+        _mediaType = mime.startsWith('video/') ? 'video' : 'audio';
         _trimRange = const RangeValues(0, 1);
         _trimEdited = false;
-        _step = 2;
+        _step = 0;
       });
     } catch (_) {
       if (!mounted) return;
@@ -127,16 +133,6 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
         const SnackBar(content: Text('Could not open the image picker.')),
       );
     }
-  }
-
-  void _changeMediaType(String type) {
-    if (_busy || type == _mediaType) return;
-    setState(() {
-      _mediaType = type;
-      _selectedFile = null;
-      _selectedBytes = null;
-      _mimeType = null;
-    });
   }
 
   Future<void> _queueUpload() async {
@@ -209,7 +205,7 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   }
 
   void _nextStep() {
-    if (_step == 1 && _selectedFile == null) {
+    if (_step == 0 && _selectedFile == null) {
       _showMessage('Choose a media file first.');
       return;
     }
@@ -247,12 +243,8 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   String get _stepTitle {
     switch (_step) {
       case 0:
-        return 'Create';
-      case 1:
-        return 'Choose media';
-      case 2:
         return 'Edit media';
-      case 3:
+      case 1:
         return 'Choose category';
       default:
         return 'Post details';
@@ -260,49 +252,9 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   }
 
   Widget _buildStep() {
-    if (_step == 0) return _mediaTypeStep();
-    if (_step == 1) return _fileStep();
-    if (_step == 2) return _editorStep();
-    if (_step == 3) return _categoryStep();
+    if (_step == 0) return _editorStep();
+    if (_step == 1) return _categoryStep();
     return _detailsStep();
-  }
-
-  Widget _mediaTypeStep() {
-    return _stepShell(
-      title: 'What do you want to share?',
-      child: Column(
-        children: [
-          _choiceTile(
-            label: 'Video',
-            icon: Icons.videocam_outlined,
-            selected: _mediaType == 'video',
-            onTap: () => _changeMediaType('video'),
-          ),
-          _choiceTile(
-            label: 'Audio',
-            icon: Icons.audiotrack_outlined,
-            selected: _mediaType == 'audio',
-            onTap: () => _changeMediaType('audio'),
-          ),
-        ],
-      ),
-      onNext: _nextStep,
-    );
-  }
-
-  Widget _fileStep() {
-    return _stepShell(
-      title: _mediaType == 'video' ? 'Choose your video' : 'Choose your audio',
-      child: OutlinedButton.icon(
-        onPressed: _pickMedia,
-        icon: const Icon(Icons.upload_file_outlined),
-        label: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Text(_selectedFile?.name ?? 'Choose file'),
-        ),
-      ),
-      onNext: _selectedFile == null ? null : _nextStep,
-    );
   }
 
   Widget _categoryStep() {
