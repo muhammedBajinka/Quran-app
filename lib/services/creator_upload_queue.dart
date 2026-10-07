@@ -70,6 +70,7 @@ class CreatorUploadQueue extends ChangeNotifier {
   bool get hasActiveUploads => _jobs.any((job) => job.isActive);
 
   void enqueue(CreatorUploadJob job) {
+    if (_jobs.any((existing) => existing.localId == job.localId)) return;
     _jobs.insert(0, job);
     notifyListeners();
     _process();
@@ -128,7 +129,9 @@ class CreatorUploadQueue extends ChangeNotifier {
 
   Future<void> _run(CreatorUploadJob job) async {
     job
-      ..state = CreatorUploadState.uploading
+      ..state = job.mediaId == null
+          ? CreatorUploadState.uploading
+          : CreatorUploadState.finalizing
       ..progress = job.mediaId == null ? 0 : 1
       ..error = null;
     notifyListeners();
@@ -195,7 +198,9 @@ class CreatorUploadQueue extends ChangeNotifier {
         },
       );
 
-      job.state = CreatorUploadState.completed;
+      job
+        ..state = CreatorUploadState.completed
+        ..progress = 1;
       notifyListeners();
     } catch (error) {
       if (job.uploadAttempted && job.mediaId == null) {
@@ -212,22 +217,30 @@ class CreatorUploadQueue extends ChangeNotifier {
   }
 
   String? _extractMediaId(Map<String, dynamic> result) {
-    final direct =
-        result['mediaId']?.toString() ?? result['id']?.toString();
+    final direct = result['mediaId']?.toString() ??
+        result['media_id']?.toString() ?? result['id']?.toString();
     if (direct != null && direct.isNotEmpty) return direct;
 
     final media = result['media'];
     if (media is Map) {
-      final id = media['mediaId']?.toString() ?? media['id']?.toString();
+      final id = media['mediaId']?.toString() ?? media['media_id']?.toString() ?? media['id']?.toString();
       if (id != null && id.isNotEmpty) return id;
     }
 
     final data = result['data'];
     if (data is Map) {
-      final id = data['mediaId']?.toString() ?? data['id']?.toString();
+      final id = data['mediaId']?.toString() ?? data['media_id']?.toString() ?? data['id']?.toString();
       if (id != null && id.isNotEmpty) return id;
     }
 
+    // Some Worker versions return the created row under a result key.
+    final resultRow = result['result'];
+    if (resultRow is Map) {
+      final id = resultRow['mediaId']?.toString() ??
+          resultRow['media_id']?.toString() ??
+          resultRow['id']?.toString();
+      if (id != null && id.isNotEmpty) return id;
+    }
     return null;
   }
 
