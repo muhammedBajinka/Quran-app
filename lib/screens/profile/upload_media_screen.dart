@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 
 import '../../models/audio/media_item.dart';
 import '../../data/media_repository.dart';
-import '../../services/video_trim_service.dart';
-import '../../widgets/creator_media_editor.dart';
 
 import '../../services/creator_upload_queue.dart';
 
@@ -36,8 +34,6 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   bool _saveAsDraft = false;
   bool _busy = false;
   int _step = 0;
-  RangeValues _trimRange = const RangeValues(0, 1);
-  bool _trimEdited = false;
 
   static const _audioMimeTypes = {
     'mp3': 'audio/mpeg',
@@ -97,8 +93,6 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
         _selectedBytes = bytes;
         _mimeType = mime;
         _mediaType = mime.startsWith('video/') ? 'video' : 'audio';
-        _trimRange = const RangeValues(0, 1);
-        _trimEdited = false;
         _step = 0;
       });
     } catch (_) {
@@ -151,23 +145,6 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
 
     setState(() => _busy = true);
     try {
-      if (_mediaType == 'video' &&
-          _trimEdited &&
-          _trimRange.end > _trimRange.start) {
-        final trimmed = await trimVideoFile(
-          sourcePath: file.path,
-          startMs: _trimRange.start,
-          endMs: _trimRange.end,
-        );
-        if (trimmed == null) {
-          _showMessage(
-            'Could not prepare the selected trim. Adjust the handles and try again.',
-          );
-          return;
-        }
-        bytes = trimmed;
-      }
-
       CreatorUploadQueue.instance.enqueue(
         CreatorUploadJob(
           localId: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -243,7 +220,7 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   String get _stepTitle {
     switch (_step) {
       case 0:
-        return 'Edit media';
+        return 'Selected file';
       case 1:
         return 'Choose category';
       default:
@@ -282,9 +259,8 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   }
 
   Widget _editorStep() {
-    final bytes = _selectedBytes;
-    final mime = _mimeType;
-    if (bytes == null || mime == null) {
+    final file = _selectedFile;
+    if (file == null || _selectedBytes == null || _mimeType == null) {
       return Center(
         child: FilledButton.icon(
           onPressed: _pickMedia,
@@ -294,50 +270,25 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            _mediaType == 'video' ? 'Edit your video' : 'Edit your audio',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Preview it and drag the handles to choose the part you want to post.',
-            style: TextStyle(color: Colors.black54),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: CreatorMediaEditor(
-              bytes: bytes,
-              mediaType: _mediaType,
-              mimeType: mime,
-              sourcePath: _selectedFile?.path,
-              trim: _trimRange,
-              onTrimChanged: (range) {
-                if (mounted) {
-                  setState(() {
-                    _trimRange = range;
-                    _trimEdited = true;
-                  });
-                }
-              },
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: _pickMedia,
-            icon: const Icon(Icons.swap_horiz),
-            label: Text(
-              _mediaType == 'video' ? 'Choose another video' : 'Choose another audio',
-            ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton(onPressed: _nextStep, child: const Text('Next')),
-        ],
-      ),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
+      children: [
+        const Icon(Icons.check_circle_outline, size: 48, color: Color(0xFF2E7D5B)),
+        const SizedBox(height: 12),
+        const Text('File selected', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Text(file.name),
+        const SizedBox(height: 4),
+        Text(_mediaType == 'video' ? 'Video' : 'Audio', style: const TextStyle(color: Colors.black54)),
+        const SizedBox(height: 20),
+        OutlinedButton.icon(
+          onPressed: _pickMedia,
+          icon: const Icon(Icons.swap_horiz),
+          label: const Text('Choose another file'),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(onPressed: _nextStep, child: const Text('Next')),
+      ],
     );
   }
 
