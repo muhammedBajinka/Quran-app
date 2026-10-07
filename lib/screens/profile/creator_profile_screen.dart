@@ -404,7 +404,8 @@ class _UploadQueuePanel extends StatelessWidget {
     if (pending.isEmpty) return const SizedBox.shrink();
 
     final failed = pending
-        .where((job) => job.state == CreatorUploadState.failed)
+        .where((job) => job.state == CreatorUploadState.failed ||
+            job.state == CreatorUploadState.needsReview)
         .length;
     final label = failed > 0
         ? 'Uploads · ${pending.length} · $failed failed'
@@ -448,7 +449,7 @@ class _UploadQueuePanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'You can follow upload progress here. If an upload fails, retry it or dismiss it.',
+                  'Upload progress appears here. Retry only resumes finalization; uncertain uploads must be checked before uploading again.',
                   style: TextStyle(color: Colors.black54, fontSize: 12),
                 ),
                 const SizedBox(height: 12),
@@ -480,7 +481,9 @@ class _UploadQueuePanel extends StatelessWidget {
       case CreatorUploadState.completed:
         status = 'Complete';
       case CreatorUploadState.failed:
-        status = job.error ?? 'Upload failed';
+        status = job.error ?? 'Finalization failed';
+      case CreatorUploadState.needsReview:
+        status = job.error ?? 'Check your posts before uploading again';
     }
 
     return ListTile(
@@ -502,14 +505,16 @@ class _UploadQueuePanel extends StatelessWidget {
             ),
         ],
       ),
-      trailing: job.state == CreatorUploadState.failed
+      trailing: (job.state == CreatorUploadState.failed ||
+              job.state == CreatorUploadState.needsReview)
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton(
-                  onPressed: () => onRetry(job.localId),
-                  child: const Text('Retry'),
-                ),
+                if (job.canRetry)
+                  TextButton(
+                    onPressed: () => onRetry(job.localId),
+                    child: const Text('Retry finalization'),
+                  ),
                 IconButton(
                   tooltip: 'Dismiss failed upload',
                   onPressed: () => onDismiss(job.localId),
