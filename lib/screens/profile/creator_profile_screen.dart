@@ -399,7 +399,7 @@ class _UploadQueuePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pending = jobs
-        .where((job) => job.state != CreatorUploadState.completed)
+        
         .toList();
     if (pending.isEmpty) return const SizedBox.shrink();
 
@@ -436,7 +436,7 @@ class _UploadQueuePanel extends StatelessWidget {
         animation: queue,
         builder: (context, _) {
           final pending = queue.jobs
-              .where((job) => job.state != CreatorUploadState.completed)
+              
               .toList(growable: false);
           return SafeArea(
             child: ListView(
@@ -477,9 +477,9 @@ class _UploadQueuePanel extends StatelessWidget {
       case CreatorUploadState.uploading:
         status = 'Uploading $percent%';
       case CreatorUploadState.finalizing:
-        status = 'Finishing';
+        status = 'Finalizing post';
       case CreatorUploadState.completed:
-        status = 'Complete';
+        status = job.draft ? 'Draft saved' : 'Published';
       case CreatorUploadState.failed:
         status = job.error ?? 'Finalization failed';
       case CreatorUploadState.needsReview:
@@ -506,7 +506,8 @@ class _UploadQueuePanel extends StatelessWidget {
         ],
       ),
       trailing: (job.state == CreatorUploadState.failed ||
-              job.state == CreatorUploadState.needsReview)
+              job.state == CreatorUploadState.needsReview ||
+              job.state == CreatorUploadState.completed)
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -516,7 +517,7 @@ class _UploadQueuePanel extends StatelessWidget {
                     child: const Text('Retry finalization'),
                   ),
                 IconButton(
-                  tooltip: 'Dismiss failed upload',
+                  tooltip: 'Clear from queue',
                   onPressed: () => onDismiss(job.localId),
                   icon: const Icon(Icons.close),
                 ),
