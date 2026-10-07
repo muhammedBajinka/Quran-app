@@ -284,7 +284,15 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
   Widget _editorStep() {
     final bytes = _selectedBytes;
     final mime = _mimeType;
-    if (bytes == null || mime == null) return _fileStep();
+    if (bytes == null || mime == null) {
+      return Center(
+        child: FilledButton.icon(
+          onPressed: _pickMedia,
+          icon: const Icon(Icons.upload_file_outlined),
+          label: const Text('Choose audio or video'),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
