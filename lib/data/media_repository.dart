@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/audio/media_item.dart';
+import '../services/media_worker_service.dart';
 
 class MediaRepository {
   final SupabaseClient _client;
@@ -28,6 +29,16 @@ class MediaRepository {
     published,
     created_at
   ''';
+
+  Future<void> deleteOwnMedia(MediaItem item) async {
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous || item.creatorId != user.id) {
+      throw StateError('Only the owner can delete this post.');
+    }
+    // The server validates ownership again and cleans storage before reporting
+    // success. Never delete the database row directly from the app.
+    await MediaWorkerService(supabase: _client).deleteMedia(item.id);
+  }
 
   Future<List<MediaItem>> getItems(MediaItemType type) async {
     final rows = await _client
@@ -233,19 +244,21 @@ class MediaRepository {
   }
 
   Future<List<MediaItem>> _withSignedThumbnails(List<MediaItem> items) async {
-    return Future.wait(items.map((item) async {
-      final path = item.thumbnailPath?.trim();
-      if (path == null || path.isEmpty) return item;
+    return Future.wait(
+      items.map((item) async {
+        final path = item.thumbnailPath?.trim();
+        if (path == null || path.isEmpty) return item;
 
-      try {
-        final signed = await _client.storage
-            .from('media-thumbnails')
-            .createSignedUrl(path, 3600);
-        return item.copyWith(thumbnailUrl: signed);
-      } catch (_) {
-        return item;
-      }
-    }));
+        try {
+          final signed = await _client.storage
+              .from('media-thumbnails')
+              .createSignedUrl(path, 3600);
+          return item.copyWith(thumbnailUrl: signed);
+        } catch (_) {
+          return item;
+        }
+      }),
+    );
   }
 
   List<MediaItem> _mapRows(dynamic rows) {

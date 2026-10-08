@@ -10,6 +10,7 @@ class MediaAudioController extends ChangeNotifier {
   bool _repeatEnabled = false;
   double _speed = 1.0;
   int _playRequest = 0;
+  Future<void> _loadTail = Future<void>.value();
 
   AudioPlayer get player => _player;
 
@@ -21,22 +22,32 @@ class MediaAudioController extends ChangeNotifier {
 
   bool get hasCurrentItem => _currentItem != null;
 
-  Future<void> playItem(MediaItem item) async {
-    if (!item.hasAudio) return;
+  Future<void> playItem(MediaItem item) {
+    if (!item.hasAudio) return Future<void>.value();
     final request = ++_playRequest;
-    final isNewItem = _currentItem?.id != item.id;
-    if (isNewItem) {
-      await _player.stop();
+    // Serialize source changes. A stale setUrl must finish before a newer one
+    // starts, otherwise it can replace the newly visible clip's source.
+    final operation = _loadTail.then((_) async {
       if (request != _playRequest) return;
-      await _player.setUrl(item.audioUrl!);
+      if (_currentItem?.id != item.id) {
+        _currentItem = null;
+        notifyListeners();
+        await _player.stop();
+        if (request != _playRequest) return;
+        await _player.setUrl(item.audioUrl!);
+        if (request != _playRequest) return;
+        _currentItem = item;
+        notifyListeners();
+      }
       if (request != _playRequest) return;
-      _currentItem = item;
-      notifyListeners();
-    }
-    if (request != _playRequest) return;
-    // AudioPlayer.play() completes when playback ends, not when it starts.
-    // Do not await it here: page navigation must not wait for the whole clip.
-    _player.play();
+      if (_player.processingState == ProcessingState.completed) {
+        await _player.seek(Duration.zero);
+      }
+      if (request == _playRequest) _player.play();
+    });
+    // A failed source must not poison the queue for later clips.
+    _loadTail = operation.catchError((Object _) {});
+    return operation;
   }
 
   Future<void> play() async {
@@ -44,7 +55,10 @@ class MediaAudioController extends ChangeNotifier {
       return;
     }
 
-    await _player.play();
+    if (_player.processingState == ProcessingState.completed) {
+      await _player.seek(Duration.zero);
+    }
+    _player.play();
   }
 
   Future<void> pause() async {
@@ -79,6 +93,7 @@ class MediaAudioController extends ChangeNotifier {
 
   @override
   void dispose() {
+    ++_playRequest;
     _player.dispose();
     super.dispose();
   }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -42,10 +43,7 @@ class MediaWorkerService {
       throw StateError('A Google or other real account is required to upload.');
     }
 
-    final request = http.StreamedRequest(
-      'POST',
-      Uri.parse('$_baseUrl/upload'),
-    );
+    final request = http.StreamedRequest('POST', Uri.parse('$_baseUrl/upload'));
 
     request.headers.addAll({
       'Authorization': 'Bearer ${session.accessToken}',
@@ -114,9 +112,7 @@ class MediaWorkerService {
             decoded['error']?.toString() ??
             decoded['message']?.toString() ??
             'Media upload failed.';
-        throw StateError(
-          'Worker HTTP ${response.statusCode}: $workerError',
-        );
+        throw StateError('Worker HTTP ${response.statusCode}: $workerError');
       }
 
       debugPrint('[UPLOAD] Worker upload succeeded.');
@@ -125,6 +121,29 @@ class MediaWorkerService {
       debugPrint('[UPLOAD] FAILURE: $error');
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
+    }
+  }
+
+  Future<void> deleteMedia(String mediaId) async {
+    final session = _supabase.auth.currentSession;
+    if (session == null || session.user.isAnonymous) {
+      throw StateError('Sign in required.');
+    }
+    final response = await http
+        .delete(
+          Uri.parse('$_baseUrl/media/${Uri.encodeComponent(mediaId)}'),
+          headers: {
+            'Authorization': 'Bearer ${session.accessToken}',
+            'Accept': 'application/json',
+          },
+        )
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode != 200) {
+      throw StateError('Media cleanup failed (${response.statusCode}).');
+    }
+    final body = jsonDecode(response.body);
+    if (body is! Map<String, dynamic> || body['deleted'] != mediaId) {
+      throw StateError('Media server did not confirm deletion.');
     }
   }
 
