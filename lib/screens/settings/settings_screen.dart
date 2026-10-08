@@ -60,56 +60,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Widget _buildAccountCard() {
+  Widget _buildAccountRow() {
     final user = _authService.currentUser;
     final hasAccount = user != null && !user.isAnonymous;
     final email = user?.email?.trim();
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const MyAccountScreen()),
-          );
-        },
-        leading: CircleAvatar(
-          backgroundColor: const Color(0xFFE7F1EC),
-          child: Icon(
-            hasAccount ? Icons.person : Icons.person_outline,
-            color: const Color(0xFF2E7D5B),
+    return Column(
+      children: [
+        ListTile(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const MyAccountScreen()),
+            );
+          },
+          leading: CircleAvatar(
+            backgroundColor: const Color(0xFFE7F1EC),
+            child: Icon(
+              hasAccount ? Icons.person : Icons.person_outline,
+              color: const Color(0xFF2E7D5B),
+            ),
           ),
+          title: const Text(
+            'My Account',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            hasAccount
+                ? (email == null || email.isEmpty
+                      ? 'Profile, posts and account settings'
+                      : email)
+                : 'Sign in to manage your profile and posts',
+          ),
+          trailing: const Icon(Icons.chevron_right),
         ),
-        title: const Text(
-          'My Account',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          hasAccount
-              ? (email == null || email.isEmpty
-                    ? 'Profile, posts and account settings'
-                    : email)
-              : 'Sign in, create your profile and sync your account',
-        ),
-        trailing: const Icon(Icons.chevron_right),
-      ),
+        const Divider(height: 1),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
       children: [
         const _SectionTitle('Account'),
 
-        _buildAccountCard(),
+        _buildAccountRow(),
 
         const SizedBox(height: 20),
         const _SectionTitle('Quran'),
 
-        Card(
-          margin: const EdgeInsets.only(bottom: 8),
+        Container(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFE0E0E0))),
+          ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
             child: Column(
@@ -604,7 +608,7 @@ class _PrivacyPage extends StatelessWidget {
         surfaceTintColor: Colors.white,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         children: const [
           Text(
             'Privacy',
@@ -654,14 +658,39 @@ class _PrivacyPage extends StatelessWidget {
           ),
           SizedBox(height: 24),
           Text(
-            'Future accounts',
+            'Accounts and public profiles',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           ),
           SizedBox(height: 8),
           Text(
-            'If user accounts or connection features are introduced later, '
-            'their identity and privacy controls will be handled separately '
-            'from the anonymous installation identifier.',
+            'Account sign-in and profile data are handled through Supabase. Your public username, display name, biography and profile picture may be visible to other people. Your sign-in email is not displayed as your public profile name.',
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Uploaded media and social activity',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Media that you upload is stored online, including audio or video in Cloudflare R2 and post information in Supabase. Published posts can be viewed by other people. Likes, comments, follows and reposts are stored online. Creator privacy settings control the visibility of liked posts and reposts, downloads and who can comment.',
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Deleting your posts',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'You can delete your own posts from your creator profile. The deletion service checks ownership and removes the post and its associated media when cleanup succeeds. If cleanup fails, the app shows an error; do not assume the file was removed. Copies already downloaded or shared by other people are outside the app’s control.',
+          ),
+          SizedBox(height: 24),
+          Text(
+            'Questions and corrections',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Use Settings → Feedback to report a privacy concern or request a correction. Avoid including passwords or other sensitive information.',
           ),
         ],
       ),
@@ -773,7 +802,7 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       child: Text(
         title,
         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
@@ -799,16 +828,24 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     const green = Color(0xFF2E7D5B);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: Icon(icon, color: green),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: onTap,
-      ),
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
+          leading: Icon(icon, color: green),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(subtitle),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: onTap,
+        ),
+        const Divider(height: 1),
+      ],
     );
   }
 }
