@@ -94,6 +94,31 @@ class MediaSocialRepository {
     return CreatorProfile.fromMap(Map<String, dynamic>.from(row));
   }
 
+  /// Searches only public profile fields, never account emails.
+  Future<List<CreatorProfile>> searchCreators(String query) async {
+    final search = query.trim();
+    if (search.isEmpty) return const [];
+    final results = await Future.wait([
+      for (final field in ['username', 'display_name'])
+        _client
+            .from('profiles')
+            .select(
+              'user_id, username, display_name, bio, avatar_url, is_suspended, is_verified',
+            )
+            .eq('is_suspended', false)
+            .ilike(field, '%$search%')
+            .limit(12),
+    ]);
+    final profiles = <String, CreatorProfile>{};
+    for (final rows in results) {
+      for (final row in rows) {
+        final profile = CreatorProfile.fromMap(Map<String, dynamic>.from(row));
+        profiles[profile.userId] = profile;
+      }
+    }
+    return profiles.values.take(12).toList();
+  }
+
   // ---------------------------------------------------------------------------
   // FOLLOWING
   // ---------------------------------------------------------------------------

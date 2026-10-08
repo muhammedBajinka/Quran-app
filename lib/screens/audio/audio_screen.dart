@@ -9,6 +9,7 @@ import '../profile/creator_profile_screen.dart';
 import '../profile/upload_media_screen.dart';
 
 import '../../data/media_repository.dart';
+import '../../widgets/media_search_results.dart';
 import '../../services/media_worker_service.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
@@ -36,6 +37,8 @@ class _AudioScreenState extends State<AudioScreen> {
   final TextEditingController _searchController = TextEditingController();
   late Future<List<MediaItem>> _items;
   Future<List<MediaItem>>? _searchResults;
+  Future<List<CreatorProfile>>? _creatorSearchResults;
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -54,27 +57,38 @@ class _AudioScreenState extends State<AudioScreen> {
       _searchMode = true;
       _searchController.clear();
       _searchResults = null;
+      _creatorSearchResults = null;
     });
   }
 
   void _closeSearch() {
+    _searchDebounce?.cancel();
     widget.audioController.pause();
 
     setState(() {
       _searchMode = false;
       _searchController.clear();
       _searchResults = null;
+      _creatorSearchResults = null;
       _currentVisibleItem = null;
     });
   }
 
   void _runSearch(String query) {
-    final trimmed = query.trim();
-
-    setState(() {
-      _searchResults = trimmed.isEmpty
-          ? null
-          : _repository.searchPublished(trimmed);
+    _searchDebounce?.cancel();
+    if (query.trim().isEmpty) {
+      setState(() {
+        _searchResults = null;
+        _creatorSearchResults = null;
+      });
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted || !_searchMode) return;
+      setState(() {
+        _searchResults = _repository.searchPublished(query.trim());
+        _creatorSearchResults = _socialRepository.searchCreators(query.trim());
+      });
     });
   }
 
@@ -135,6 +149,7 @@ class _AudioScreenState extends State<AudioScreen> {
   @override
   void dispose() {
     widget.audioController.pause();
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -201,6 +216,7 @@ class _AudioScreenState extends State<AudioScreen> {
       return _MediaSearchView(
         controller: _searchController,
         results: _searchResults,
+        creatorResults: _creatorSearchResults,
         repository: _repository,
         audioController: widget.audioController,
         socialRepository: _socialRepository,
@@ -278,6 +294,7 @@ class _AudioScreenState extends State<AudioScreen> {
 class _MediaSearchView extends StatelessWidget {
   final TextEditingController controller;
   final Future<List<MediaItem>>? results;
+  final Future<List<CreatorProfile>>? creatorResults;
   final MediaRepository repository;
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
@@ -288,6 +305,7 @@ class _MediaSearchView extends StatelessWidget {
   const _MediaSearchView({
     required this.controller,
     required this.results,
+    required this.creatorResults,
     required this.repository,
     required this.audioController,
     required this.socialRepository,
@@ -323,7 +341,7 @@ class _MediaSearchView extends StatelessWidget {
                       onChanged: onSearch,
                       onSubmitted: onSearch,
                       decoration: InputDecoration(
-                        hintText: 'Search media',
+                        hintText: 'Search posts and creators',
                         hintStyle: const TextStyle(color: Colors.white60),
                         prefixIcon: const Icon(
                           Icons.search,
@@ -356,7 +374,7 @@ class _MediaSearchView extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
-            'Search for a title, speaker, or description.',
+            'Search for a title, speaker, description, or creator.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white70, fontSize: 16),
           ),
@@ -388,28 +406,46 @@ class _MediaSearchView extends StatelessWidget {
 
         final items = snapshot.data ?? const <MediaItem>[];
 
-        if (items.isEmpty) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'No Media found for that search.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            ),
-          );
-        }
-
-        return _UnifiedMediaFeed(
-          key: ValueKey(items.map((item) => item.id).join(',')),
-          items: items,
-          audioController: audioController,
-          socialRepository: socialRepository,
-          onSwipeLeft: () {},
-          onSwipeRight: () {},
-          onCurrentItemChanged: (_) {},
-          onCreatorPressed: onCreatorPressed,
+        return FutureBuilder<List<CreatorProfile>>(
+          future: creatorResults,
+          builder: (context, creatorsSnapshot) {
+            if (creatorsSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              );
+            }
+            return Column(
+              children: [
+                if (creatorsSnapshot.hasError)
+                  const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Text(
+                      'Creator search is unavailable. Try searching again.',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  ),
+                Expanded(
+                  child: MediaSearchResults(
+                    items: items,
+                    creators: creatorsSnapshot.data ?? const [],
+                    onOpenCreator: (id) {
+                      onCreatorPressed(id);
+                    },
+                    onOpenMedia: (index) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => CreatorMediaFeedScreen(
+                            items: items,
+                            initialIndex: index,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
