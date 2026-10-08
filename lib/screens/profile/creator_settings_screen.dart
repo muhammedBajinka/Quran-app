@@ -328,7 +328,7 @@ class _CreatorPrivacyScreenState extends State<_CreatorPrivacyScreen> {
                     SwitchListTile(
                       secondary: const Icon(Icons.download_outlined, color: Color(0xFF2E7D5B)),
                       title: const Text('Allow downloads', style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Allow people to download your current and future posts'),
+                      subtitle: const Text('Default for new uploads. Existing posts stay unchanged.'),
                       value: value.allowDownloads,
                       onChanged: _saving ? null : (enabled) => _save(value.copyWith(allowDownloads: enabled)),
                     ),
@@ -338,7 +338,7 @@ class _CreatorPrivacyScreenState extends State<_CreatorPrivacyScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
                       leading: const Icon(Icons.chat_bubble_outline, color: Color(0xFF2E7D5B)),
                       title: const Text('Comments', style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(_commentLabel(value.commentPermission)),
+                      subtitle: Text('${_commentLabel(value.commentPermission)} — new uploads only'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _saving ? null : _chooseComments,
                     ),

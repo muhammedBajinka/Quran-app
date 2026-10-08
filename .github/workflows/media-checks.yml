@@ -15,6 +15,8 @@ jobs:
           node-version: '22'
       - name: Test deletion authorization and failure handling
         run: node --test worker/*.test.mjs
+      - name: Verify deployed download endpoint
+        run: node worker/download-media-smoke.mjs
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.5'
@@ -23,6 +25,6 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - name: Test deletion errors and search results
-        run: flutter test test/media_deletion_error_test.dart test/media_search_results_test.dart test/account_deletion_screen_test.dart
+        run: flutter test test/media_deletion_error_test.dart test/media_search_results_test.dart test/account_deletion_screen_test.dart test/media_links_download_test.dart
       - name: Compile web app
         run: flutter build web --release

@@ -11,6 +11,8 @@ import '../profile/upload_media_screen.dart';
 import '../../data/media_repository.dart';
 import '../../widgets/media_search_results.dart';
 import '../../services/media_worker_service.dart';
+import '../../services/media_links.dart';
+import '../../widgets/media_download_dialog.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
 import '../../state/audio/media_audio_controller.dart';
@@ -19,8 +21,9 @@ enum _MediaFeedTab { other, sermon, dua, recitation, following, forYou }
 
 class AudioScreen extends StatefulWidget {
   final MediaAudioController audioController;
+  final String? sharedMediaId;
 
-  const AudioScreen({super.key, required this.audioController});
+  const AudioScreen({super.key, required this.audioController, this.sharedMediaId});
 
   @override
   State<AudioScreen> createState() => _AudioScreenState();
@@ -47,7 +50,9 @@ class _AudioScreenState extends State<AudioScreen> {
   }
 
   void _load() {
-    _items = _loadSelectedFeed();
+    _items = widget.sharedMediaId != null && _selectedTab == _MediaFeedTab.forYou
+        ? _repository.getSharedFeed(widget.sharedMediaId!)
+        : _loadSelectedFeed();
   }
 
   void _openSearch() {
@@ -254,7 +259,9 @@ class _AudioScreenState extends State<AudioScreen> {
               final items = snapshot.data ?? const <MediaItem>[];
 
               if (items.isEmpty) {
-                final message = _selectedTab == _MediaFeedTab.following
+                final message = widget.sharedMediaId != null && _selectedTab == _MediaFeedTab.forYou
+                    ? 'This shared post is unavailable or you do not have access.'
+                    : _selectedTab == _MediaFeedTab.following
                     ? 'Follow creators to see their posts here.'
                     : 'No Media has been published here yet.';
 
@@ -1124,25 +1131,13 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   }
 
   Future<void> _downloadMedia() async {
-    final mediaUrl = widget.item.videoUrl ?? widget.item.audioUrl;
-
-    if (mediaUrl == null || mediaUrl.trim().isEmpty) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This post does not have a downloadable media file.'),
-        ),
-      );
-      return;
-    }
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Download is allowed. Device saving is being connected.'),
-      ),
+    if (!widget.item.downloadsEnabled) return;
+    final url = widget.item.videoUrl ?? widget.item.audioUrl;
+    if (url == null || url.trim().isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => MediaDownloadDialog(item: widget.item),
     );
   }
 
@@ -1777,7 +1772,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
     final creatorName = _creator?.visibleName ?? item.speaker ?? 'Quran Life';
 
-    final shareText = [item.title, 'By $creatorName', mediaUrl].join('\n');
+    final shareText = [item.title, 'By $creatorName', MediaLinks.forPost(item.id).toString()].join('\n');
 
     try {
       await SharePlus.instance.share(
@@ -2188,11 +2183,26 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   late Future<List<MediaComment>> _comments;
 
   bool _sending = false;
+  bool _canComment = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    final permission = widget.item.commentPermission;
+    var allowed = permission == 'everyone';
+    if (permission == 'followers' && widget.item.creatorId != null) {
+      try {
+        allowed = await widget.repository.isFollowing(widget.item.creatorId!);
+      } catch (_) {
+        allowed = false;
+      }
+    }
+    if (mounted) setState(() => _canComment = allowed);
   }
 
   void _load() {
@@ -2202,7 +2212,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   Future<void> _send() async {
     final text = _textController.text.trim();
 
-    if (text.isEmpty || _sending) {
+    if (text.isEmpty || _sending || !_canComment) {
       return;
     }
 
@@ -2320,7 +2330,17 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               ),
             ),
             const Divider(height: 1),
-            Padding(
+            if (!_canComment)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  widget.item.commentPermission == 'followers'
+                      ? 'Only followers can comment on this post.'
+                      : 'Comments are turned off for this post.',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ),
+            if (_canComment) Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               child: Row(
                 children: [

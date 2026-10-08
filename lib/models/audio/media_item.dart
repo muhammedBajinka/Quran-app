@@ -18,6 +18,7 @@ class MediaItem {
   final bool pinned;
   final int? pinOrder;
   final bool downloadsEnabled;
+  final String commentPermission;
   final String visibility;
   final bool published;
 
@@ -35,7 +36,8 @@ class MediaItem {
     this.createdAt,
     this.pinned = false,
     this.pinOrder,
-    this.downloadsEnabled = false,
+    this.downloadsEnabled = true,
+    this.commentPermission = 'everyone',
     this.visibility = 'public',
     this.published = true,
   });
@@ -63,6 +65,7 @@ class MediaItem {
       pinned: pinned,
       pinOrder: pinOrder,
       downloadsEnabled: downloadsEnabled,
+      commentPermission: commentPermission,
       visibility: visibility,
       published: published,
     );

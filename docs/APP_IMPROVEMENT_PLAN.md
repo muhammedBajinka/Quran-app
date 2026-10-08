@@ -32,3 +32,13 @@ Each run must append its PR/commit, checks and deployment results, next action a
 - Validate grants and request privacy with synthetic rolled-back users/posts, plus focused request UI tests and GitHub analyzer/web compilation.
 - Hourly task was found paused; this batch is being completed directly at the user’s request.
 - Applied migrations 20261008142401 and 20261008142545. Synthetic rollback tests passed owner draft edits, wrong-user denial, anonymous denial, one pending request, cancellation/re-request, and already-published draft guard. Existing security advisor findings remain queued; anonymous admin-review access was explicitly denied for the new request table.
+
+
+### Shared posts, downloads, upload defaults and thumbnail retry
+
+- Canonical `?media=<post UUID>` links open the normal main Media tab with the target first and the rest of the feed after it. Unpublished, private, missing or inaccessible targets show an unavailable message.
+- Downloads use a streamed Supabase endpoint that validates the caller, post visibility and per-post download permission (R2 currently lacks browser CORS). Downloads transfer real bytes, show determinate or byte progress, support cancellation and errors, then use the native/browser save picker. Browser completion means handed to the browser; device saving needs manual verification. Large files are currently held in memory by the cross-platform save API.
+- New accounts/default settings enable downloads and comments. Existing opt-outs are retained. Changing creator defaults only affects subsequently uploaded posts; per-post values are immutable to client updates. Existing effective comment permissions are copied once during migration; existing comments remain readable on visible posts.
+- Android accepts the canonical HTTPS links when delivered to the app and handles cold/warm launches. Automatic OS app opening still requires domain verification at the GitHub Pages domain root and device tests; web links work as the fallback.
+- Thumbnail upsert/retry now has owner read access before finalization, while other unfinalized thumbnails stay private. The upload form checks the bucket's 5 MB thumbnail limit, and failed queue entries show full readable errors with retry below the message.
+- Validation: rolled-back Supabase fixtures cover creation RPC defaults, old-post preservation, comment/follower restrictions and owner-only unfinalized thumbnail reads. Worker regression tests pass. Flutter tests and web compilation are required by PR CI.
