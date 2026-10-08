@@ -9,6 +9,7 @@ class MediaAudioController extends ChangeNotifier {
   MediaItem? _currentItem;
   bool _repeatEnabled = false;
   double _speed = 1.0;
+  int _playRequest = 0;
 
   AudioPlayer get player => _player;
 
@@ -21,20 +22,21 @@ class MediaAudioController extends ChangeNotifier {
   bool get hasCurrentItem => _currentItem != null;
 
   Future<void> playItem(MediaItem item) async {
-    if (!item.hasAudio) {
-      return;
-    }
-
+    if (!item.hasAudio) return;
+    final request = ++_playRequest;
     final isNewItem = _currentItem?.id != item.id;
-
     if (isNewItem) {
       await _player.stop();
+      if (request != _playRequest) return;
       await _player.setUrl(item.audioUrl!);
+      if (request != _playRequest) return;
       _currentItem = item;
       notifyListeners();
     }
-
-    await _player.play();
+    if (request != _playRequest) return;
+    // AudioPlayer.play() completes when playback ends, not when it starts.
+    // Do not await it here: page navigation must not wait for the whole clip.
+    _player.play();
   }
 
   Future<void> play() async {
@@ -46,6 +48,7 @@ class MediaAudioController extends ChangeNotifier {
   }
 
   Future<void> pause() async {
+    ++_playRequest;
     await _player.pause();
   }
 
@@ -68,6 +71,7 @@ class MediaAudioController extends ChangeNotifier {
   }
 
   Future<void> close() async {
+    ++_playRequest;
     await _player.stop();
     _currentItem = null;
     notifyListeners();
