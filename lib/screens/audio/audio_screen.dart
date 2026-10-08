@@ -9,6 +9,7 @@ import '../profile/creator_profile_screen.dart';
 import '../profile/upload_media_screen.dart';
 
 import '../../data/media_repository.dart';
+import '../../services/media_worker_service.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
 import '../../state/audio/media_audio_controller.dart';
@@ -515,10 +516,12 @@ class _TopNavigation extends StatelessWidget {
 class CreatorMediaFeedScreen extends StatefulWidget {
   final List<MediaItem> items;
   final int initialIndex;
+  final bool allowManagement;
   const CreatorMediaFeedScreen({
     super.key,
     required this.items,
     required this.initialIndex,
+    this.allowManagement = false,
   });
 
   @override
@@ -543,6 +546,7 @@ class _CreatorMediaFeedScreenState extends State<CreatorMediaFeedScreen> {
         _UnifiedMediaFeed(
           items: widget.items,
           initialIndex: widget.initialIndex,
+          allowManagement: widget.allowManagement,
           audioController: _audio,
           socialRepository: _social,
           onSwipeLeft: () {},
@@ -574,6 +578,7 @@ class _CreatorMediaFeedScreenState extends State<CreatorMediaFeedScreen> {
 class _UnifiedMediaFeed extends StatefulWidget {
   final List<MediaItem> items;
   final int initialIndex;
+  final bool allowManagement;
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
   final VoidCallback onSwipeLeft;
@@ -585,6 +590,7 @@ class _UnifiedMediaFeed extends StatefulWidget {
     super.key,
     required this.items,
     this.initialIndex = 0,
+    this.allowManagement = false,
     required this.audioController,
     required this.socialRepository,
     required this.onSwipeLeft,
@@ -781,6 +787,7 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
             key: ValueKey(item.id),
             item: item,
             active: index == _currentIndex,
+            allowManagement: widget.allowManagement,
             audioController: widget.audioController,
             socialRepository: widget.socialRepository,
             onCreatorPressed: widget.onCreatorPressed,
@@ -798,6 +805,7 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 class _MediaFeedPage extends StatefulWidget {
   final MediaItem item;
   final bool active;
+  final bool allowManagement;
   final bool autoScroll;
   final ValueChanged<bool> onAutoScrollChanged;
   final VoidCallback onCompleted;
@@ -810,6 +818,7 @@ class _MediaFeedPage extends StatefulWidget {
     super.key,
     required this.item,
     required this.active,
+    required this.allowManagement,
     required this.autoScroll,
     required this.onAutoScrollChanged,
     required this.onCompleted,
@@ -844,6 +853,11 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
   String? _videoError;
   bool _deleteBusy = false;
+
+  bool get _canDelete =>
+      widget.allowManagement &&
+      widget.item.creatorId != null &&
+      widget.item.creatorId == widget.socialRepository.currentUserId;
   bool _completionReported = false;
 
   static const _speeds = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
@@ -1141,24 +1155,6 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
                     );
                   },
                 ),
-              if (widget.item.creatorId != null &&
-                  widget.item.creatorId ==
-                      widget.socialRepository.currentUserId)
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline,
-                    color: Colors.redAccent,
-                  ),
-                  title: const Text(
-                    'Delete',
-                    style: TextStyle(color: Colors.redAccent),
-                  ),
-                  enabled: !_deleteBusy,
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _deletePost();
-                  },
-                ),
               ListTile(
                 leading: const Icon(
                   Icons.download_outlined,
@@ -1211,6 +1207,22 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
                   _showSpeedSheet();
                 },
               ),
+              if (_canDelete)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                  enabled: !_deleteBusy,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _deletePost();
+                  },
+                ),
             ],
           ),
         );
@@ -1219,7 +1231,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   }
 
   Future<void> _deletePost() async {
-    if (_deleteBusy) return;
+    if (_deleteBusy || !_canDelete) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1239,23 +1251,53 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted || !_canDelete) return;
     setState(() => _deleteBusy = true);
+    _videoController?.pause();
+    widget.audioController.pause();
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final progress = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Expanded(child: Text('Deleting your post…')),
+            ],
+          ),
+        ),
+      ),
+    );
+    navigator.push(progress);
+    var deleted = false;
+    String? failure;
     try {
       await MediaRepository().deleteOwnMedia(widget.item);
-      if (mounted) widget.onDeleted();
+      deleted = true;
+    } on MediaDeletionException catch (error) {
+      failure = error.message;
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Deletion could not finish. Refresh your profile and check Posts or Drafts before retrying.',
-            ),
-          ),
-        );
-      }
+      failure = 'Could not delete this post. Please try again.';
     } finally {
+      if (progress.isActive) navigator.removeRoute(progress);
       if (mounted) setState(() => _deleteBusy = false);
+    }
+    if (!mounted) return;
+    if (deleted) {
+      widget.onDeleted();
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Post deleted.')));
+    } else {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(failure!)));
     }
   }
 
