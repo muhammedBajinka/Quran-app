@@ -24,3 +24,11 @@ User authorizes fixes, PR publication, merging after passing checks, and deploym
 - 2026-10-08: hourly task enabled. Current batch in progress; no device tests performed. Flutter local bootstrap unavailable under automatic approval review; use GitHub CI, do not bypass the rejected network access.
 
 Each run must append its PR/commit, checks and deployment results, next action and any blocker here. If a build fails, fix it first; if blocked, preserve enough detail for the next run. Do not start duplicate PRs or overwrite concurrent work.
+
+## Creator controls batch (2026-10-08)
+- PR #10 is deployed; its web deployment and signed Android APK build both passed.
+- Fix draft metadata column grants; preserve caller owner/admin RLS. Draft update must return a matching unpublished row, otherwise report unavailable rather than success.
+- Manage content now opens the signed-in creator profile. Account deletion becomes a real pending request/cancel flow with owner-only storage and admin review access. This does not implement permanent removal: backend storage/Auth cleanup and a review UI remain in the queue.
+- Validate grants and request privacy with synthetic rolled-back users/posts, plus focused request UI tests and GitHub analyzer/web compilation.
+- Hourly task was found paused; this batch is being completed directly at the user’s request.
+- Applied migrations 20261008142401 and 20261008142545. Synthetic rollback tests passed owner draft edits, wrong-user denial, anonymous denial, one pending request, cancellation/re-request, and already-published draft guard. Existing security advisor findings remain queued; anonymous admin-review access was explicitly denied for the new request table.

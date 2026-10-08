@@ -213,19 +213,28 @@ class MediaRepository {
       throw StateError('Sign in required.');
     }
 
+    if (title.trim().isEmpty || !['public', 'followers', 'private'].contains(visibility)) {
+      throw ArgumentError('A title and valid visibility are required.');
+    }
     final values = <String, dynamic>{
-      'title': title,
+      'title': title.trim(),
       'description': description.isEmpty ? null : description,
       'speaker': speaker.isEmpty ? null : speaker,
       'visibility': publish ? visibility : 'private',
       'published': publish,
     };
 
-    await _client
+    final updated = await _client
         .from('media_content')
         .update(values)
         .eq('id', mediaId)
-        .eq('creator_id', user.id);
+        .eq('creator_id', user.id)
+        .eq('published', false)
+        .select('id')
+        .maybeSingle();
+    if (updated == null) {
+      throw StateError('Draft unavailable or already published. Refresh your profile.');
+    }
   }
 
   Future<List<MediaItem>> getOwnPrivatePosts() async {

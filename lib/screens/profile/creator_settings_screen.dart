@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/media_social_repository.dart';
 import '../../services/auth_service.dart';
+import '../account/account_deletion_screen.dart';
+import 'creator_profile_screen.dart';
 
 class CreatorSettingsScreen extends StatefulWidget {
   const CreatorSettingsScreen({super.key});
@@ -128,7 +130,14 @@ class _CreatorSettingsScreenState extends State<CreatorSettingsScreen> {
                 icon: Icons.video_library_outlined,
                 title: 'Manage content',
                 subtitle: 'Manage your uploaded posts',
-                onTap: () {},
+                enabled: hasAccount,
+                onTap: () {
+                  final id = _authService.currentUser?.id;
+                  if (id == null) return;
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => CreatorProfileScreen(creatorId: id),
+                  ));
+                },
               ),
             ],
           ),
@@ -146,10 +155,12 @@ class _CreatorSettingsScreenState extends State<CreatorSettingsScreen> {
                 ),
                 _SettingsItem(
                   icon: Icons.delete_outline,
-                  title: 'Delete account',
+                  title: 'Request account deletion',
                   subtitle: 'Request permanent account deletion',
                   destructive: true,
-                  onTap: () {},
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const AccountDeletionScreen()),
+                  ),
                 ),
               ],
             ),
