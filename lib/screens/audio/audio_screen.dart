@@ -567,11 +567,9 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   }
 
   Future<void> _activateItem(MediaItem item) async {
-    if (item.hasAudio) {
-      await widget.audioController.playItem(item);
-    } else {
-      await widget.audioController.pause();
-    }
+    // Scrolling to an audio post must never start playback automatically.
+    // The viewer must explicitly tap Play for the newly visible post.
+    await widget.audioController.pause();
   }
 
   void _pageChanged(int index) {
@@ -714,7 +712,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           widget.audioController.pause();
           _playVideoIfReady();
         } else if (widget.item.hasAudio) {
-          widget.audioController.playItem(widget.item);
+          widget.audioController.pause();
         }
       } else {
         _videoController?.pause();
