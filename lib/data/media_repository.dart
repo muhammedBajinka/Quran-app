@@ -25,6 +25,7 @@ class MediaRepository {
     pinned,
     pin_order,
     downloads_enabled,
+    comment_permission,
     visibility,
     published,
     created_at
@@ -78,6 +79,15 @@ class MediaRepository {
     }
 
     return items;
+  }
+
+  Future<List<MediaItem>> getSharedFeed(String id) async {
+    final rows = await _client.from('media_content').select(_columns)
+        .eq('id', id).eq('published', true).neq('visibility', 'private');
+    final target = await _withSignedThumbnails(_mapRows(rows));
+    if (target.isEmpty) return const [];
+    final rest = await getForYouFeed();
+    return [...target, ...rest.where((item) => item.id != id)];
   }
 
   Future<List<MediaItem>> getForYouFeed() async {
@@ -294,7 +304,8 @@ class MediaRepository {
       createdAt: DateTime.tryParse(row['created_at']?.toString() ?? ''),
       pinned: row['pinned'] as bool? ?? false,
       pinOrder: row['pin_order'] as int?,
-      downloadsEnabled: row['downloads_enabled'] as bool? ?? false,
+      downloadsEnabled: row['downloads_enabled'] as bool? ?? true,
+      commentPermission: row['comment_permission'] as String? ?? 'everyone',
       visibility: row['visibility'] as String? ?? 'public',
       published: row['published'] as bool? ?? true,
     );

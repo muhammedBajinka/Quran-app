@@ -696,7 +696,7 @@ class CreatorPrivacySettings {
   const CreatorPrivacySettings({
     this.showLikedPosts = true,
     this.showReposts = true,
-    this.allowDownloads = false,
+    this.allowDownloads = true,
     this.commentPermission = 'everyone',
   });
 
@@ -718,7 +718,7 @@ class CreatorPrivacySettings {
     return CreatorPrivacySettings(
       showLikedPosts: row['show_liked_posts'] as bool? ?? true,
       showReposts: row['show_reposts'] as bool? ?? true,
-      allowDownloads: row['allow_downloads'] as bool? ?? false,
+      allowDownloads: row['allow_downloads'] as bool? ?? true,
       commentPermission: row['comment_permission'] as String? ?? 'everyone',
     );
   }

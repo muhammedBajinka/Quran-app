@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,6 +12,7 @@ import 'screens/memorization/memorization_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/quran/quran_screen.dart';
 import 'services/analytics_service.dart';
+import 'services/media_links.dart';
 import 'state/audio/media_audio_controller.dart';
 import 'state/audio/quran_audio_controller.dart';
 import 'state/memorization_state.dart';
@@ -84,15 +88,44 @@ class _QuranHomePageState extends State<QuranHomePage> {
   final QuranReciterRepository _reciterRepository = QuranReciterRepository();
 
   List<QuranReciter> _reciters = globalQuranReciters;
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+  String? _sharedMediaId = MediaLinks.postId(Uri.base);
+  StreamSubscription<Uri>? _linkSubscription;
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = _sharedMediaId == null ? 0 : 3;
+    if (!kIsWeb) {
+      final links = AppLinks();
+      _linkSubscription = links.uriLinkStream.listen(_openMediaLink, onError: (Object error) {
+        debugPrint('Could not receive app link: $error');
+      });
+      _loadInitialLink(links);
+    }
     _analyticsService.track('app_open');
     _quranReadingState.load();
     _quranSettingsState.load();
     _loadReciters();
+  }
+
+  Future<void> _loadInitialLink(AppLinks links) async {
+    try {
+      final link = await links.getInitialLink();
+      if (link != null) _openMediaLink(link);
+    } catch (error) {
+      debugPrint('Could not load app link: $error');
+    }
+  }
+
+  void _openMediaLink(Uri uri) {
+    if (!mounted || uri.scheme != 'https' ||
+        uri.host != 'muhammedbajinka.github.io' ||
+        uri.path != '/Quran-app/') return;
+    final id = MediaLinks.postId(uri);
+    if (id == null) return;
+    _mediaAudioController.pause();
+    setState(() { _sharedMediaId = id; _selectedIndex = 3; });
   }
 
   Future<void> _loadReciters() async {
@@ -152,6 +185,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
 
   @override
   void dispose() {
+    _linkSubscription?.cancel();
     _memorizationState.dispose();
     _audioController.dispose();
     _mediaAudioController.dispose();
@@ -209,7 +243,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
             progressState: widget.progressState,
             memorizationState: _memorizationState,
           ),
-          AudioScreen(audioController: _mediaAudioController),
+          AudioScreen(key: ValueKey(_sharedMediaId), audioController: _mediaAudioController, sharedMediaId: _sharedMediaId),
           SettingsScreen(
             settingsState: _quranSettingsState,
             reciters: _reciters,

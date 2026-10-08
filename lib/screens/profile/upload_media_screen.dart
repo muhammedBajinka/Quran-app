@@ -122,6 +122,12 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
       if (mime == null) return;
       final bytes = await file.readAsBytes();
       if (!mounted) return;
+      if (bytes.length > 5 * 1024 * 1024) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Choose a thumbnail smaller than 5 MB.')),
+        );
+        return;
+      }
       setState(() {
         _thumbnailBytes = bytes;
         _thumbnailMimeType = mime;

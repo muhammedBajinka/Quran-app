@@ -245,6 +245,12 @@ class CreatorUploadQueue extends ChangeNotifier {
   }
 
   String _friendlyError(Object error) {
+    if (error is StorageException) {
+      return 'Thumbnail could not be saved: ${error.message}. Your media is uploaded; retry finalization.';
+    }
+    if (error is PostgrestException) {
+      return 'Post could not be finalized: ${error.message}. Retry finalization.';
+    }
     final message = error.toString().replaceFirst('StateError: ', '').trim();
     if (message.isEmpty) return 'Upload failed. Check your connection and retry.';
     if (message.length > 180) {

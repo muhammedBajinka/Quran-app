@@ -497,7 +497,12 @@ class _UploadQueuePanel extends StatelessWidget {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(status, maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(status),
+          if (job.canRetry)
+            TextButton(
+              onPressed: () => onRetry(job.localId),
+              child: const Text('Retry finalization'),
+            ),
           if (job.state == CreatorUploadState.uploading)
             Padding(
               padding: const EdgeInsets.only(top: 5),
@@ -512,11 +517,7 @@ class _UploadQueuePanel extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (job.canRetry)
-                  TextButton(
-                    onPressed: () => onRetry(job.localId),
-                    child: const Text('Retry finalization'),
-                  ),
+
                 IconButton(
                   tooltip: 'Clear from queue',
                   onPressed: () => onDismiss(job.localId),
