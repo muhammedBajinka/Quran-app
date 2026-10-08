@@ -1,5 +1,5 @@
 // Integrate this route into the existing Worker's fetch before its fallback.
-// Required existing bindings: QURAN_MEDIA, SUPABASE_URL, SUPABASE_ANON_KEY.
+// Required existing bindings: QURAN_MEDIA, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY.
 // No service-role key is used: every database operation uses the caller's RLS.
 export async function deleteMedia(request, env, fetcher = fetch) {
   const match = new URL(request.url).pathname.match(/^\/media\/([0-9a-f-]{36})$/i);
@@ -7,7 +7,7 @@ export async function deleteMedia(request, env, fetcher = fetch) {
   const json = (body, status = 200) => Response.json(body, { status });
   const authorization = request.headers.get('Authorization');
   if (!authorization?.startsWith('Bearer ')) return json({ error: 'Sign in required' }, 401);
-  const headers = { Authorization: authorization, apikey: env.SUPABASE_ANON_KEY };
+  const headers = { Authorization: authorization, apikey: env.SUPABASE_PUBLISHABLE_KEY };
   const base = env.SUPABASE_URL.replace(/\/$/, '');
   const auth = await fetcher(`${base}/auth/v1/user`, { headers });
   if (!auth.ok) return json({ error: 'Invalid session' }, 401);
@@ -23,7 +23,9 @@ export async function deleteMedia(request, env, fetcher = fetch) {
   const row = rows[0];
   let key;
   try {
-    key = decodeURIComponent(new URL(row.media_url).pathname.slice(1));
+    const mediaUrl = new URL(row.media_url);
+    if (mediaUrl.origin !== env.MEDIA_PUBLIC_BASE_URL) return json({ error: "Storage host mismatch" }, 409);
+    key = decodeURIComponent(mediaUrl.pathname.slice(1));
   } catch {
     return json({ error: 'Invalid stored media URL' }, 409);
   }

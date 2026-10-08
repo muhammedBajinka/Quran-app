@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "quran-media-worker",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-04",
+  "r2_buckets": [
+    {
+      "binding": "QURAN_MEDIA",
+      "bucket_name": "quran-audio"
+    }
+  ]
+}

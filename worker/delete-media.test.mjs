@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { deleteMedia } from './delete-media.mjs';
+import { deleteMedia } from '../cloudflare-worker/src/delete-media.mjs';
 const id = '11111111-1111-4111-8111-111111111111';
 const userId = '22222222-2222-4222-8222-222222222222';
 function setup({ user = { id: userId }, rows, metadata, storageFailure = false, dbFailure = false } = {}) {
@@ -13,7 +13,7 @@ function setup({ user = { id: userId }, rows, metadata, storageFailure = false, 
     if (options.method === 'DELETE') return Response.json(dbFailure ? { error: 'failed' } : [row], { status: dbFailure ? 500 : 200 });
     return Response.json(rows ?? [row]);
   };
-  const env = { SUPABASE_URL: 'https://project.example', SUPABASE_ANON_KEY: 'public-key', QURAN_MEDIA: {
+  const env = { SUPABASE_URL: 'https://project.example', SUPABASE_PUBLISHABLE_KEY: 'public-key', MEDIA_PUBLIC_BASE_URL: 'https://media.example', QURAN_MEDIA: {
     head: async () => ({ customMetadata: metadata ?? { creatorId: userId, mediaId: id } }),
     delete: async () => { actions.push('R2 DELETE'); if (storageFailure) throw Error('storage failure'); },
   } };

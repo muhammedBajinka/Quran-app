@@ -1,11 +1,11 @@
-# Media deletion integration
+# Media Worker deletion
 
-This is an integration module, not a replacement upload Worker. The existing deployed Worker source is outside this repository.
+The existing Worker source is in `cloudflare-worker/src/index.js`. Its DELETE route imports `src/delete-media.mjs`, uses the existing QURAN_MEDIA R2 binding and SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY secrets, and shares the existing restricted CORS wrapper. No new service-role or R2 secret is required.
 
-Import `deleteMedia` from `delete-media.mjs` into its existing `src/index.js` and call `await deleteMedia(request, env)` before the fallback route. If it returns a response, return it through the Worker's existing restricted CORS response wrapper. Add `DELETE` to its allowed preflight methods. Keep existing upload/auth routes.
+Run `node --test worker/*.test.mjs` from the repository root. Deploy from `cloudflare-worker` using the existing authenticated Wrangler installation: `npx wrangler deploy`. Existing Cloudflare secrets remain configured on the same Worker.
 
-The module needs `QURAN_MEDIA`, `SUPABASE_URL` and `SUPABASE_ANON_KEY` (the project's publishable legacy anon key). It authenticates the caller with Supabase, rejects anonymous users, checks database ownership under RLS, and verifies the stored R2 object path and custom metadata. It does not trust caller-supplied storage paths or use a service-role key.
+Deletion authenticates the caller, rejects anonymous users, verifies database ownership under RLS, and verifies the exact R2 host, upload path and object custom metadata. Post and thumbnail deletion use existing owner policies. The original object and owned thumbnail are cleaned before the database row is removed. The server confirms the ID only after cleanup succeeds.
 
-Verify the live upload layout and thumbnail path prefix before deploying. Only `media/<user-id>/<media-id>/...` R2 paths and `<user-id>/...` thumbnail paths are accepted. Other layouts fail closed and require migration. On cleanup failure the row remains hidden in Drafts for retry. Drafts can be opened via the shared viewer's Delete action.
+The post is hidden before storage cleanup. If cleanup fails, its row remains in Drafts for retry using More → Delete. Legacy storage layouts fail closed and must be verified/migrated separately. No legacy object is guessed or deleted.
 
-Run `node --test worker/delete-media.test.mjs` and the existing Worker's checks, then deploy with its existing Wrangler configuration. This module has **not** been deployed by this change; the app handles an unavailable endpoint as a failed deletion.
+Deployment and phone tests must be verified separately from source tests and compilation.

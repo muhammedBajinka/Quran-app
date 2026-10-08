@@ -14,7 +14,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test deletion authorization and failure handling
-        run: node --test worker/delete-media.test.mjs
+        run: node --test worker/*.test.mjs
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.5'
