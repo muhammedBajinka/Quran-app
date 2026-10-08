@@ -29,7 +29,7 @@ void main() {
         'id': value, 'title': 'Post', 'content_type': 'other', 'media_type': 'video',
         'media_url': 'https://example.com/file.mp4', 'published': true,
         'visibility': 'public', 'downloads_enabled': true, 'comment_permission': 'everyone',
-      }).toList()), 200, headers: {'content-type': 'application/json'});
+      }).toList()), 200, request: request, headers: {'content-type': 'application/json'});
     });
     final supabase = SupabaseClient('https://example.supabase.co', 'test', httpClient: client);
     final feed = await MediaRepository(client: supabase).getSharedFeed(id);
@@ -40,7 +40,7 @@ void main() {
     var requests = 0;
     final client = MockClient((request) async {
       requests++;
-      return http.Response('[]', 200, headers: {'content-type': 'application/json'});
+      return http.Response('[]', 200, request: request, headers: {'content-type': 'application/json'});
     });
     final supabase = SupabaseClient('https://example.supabase.co', 'test', httpClient: client);
     expect(await MediaRepository(client: supabase).getSharedFeed(id), isEmpty);
