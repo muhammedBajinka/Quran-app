@@ -22,5 +22,7 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter analyze
+      - name: Test deletion error messages
+        run: flutter test test/media_deletion_error_test.dart
       - name: Compile web app
         run: flutter build web --release

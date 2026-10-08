@@ -1,8 +1,54 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+class MediaDeletionException implements Exception {
+  final String message;
+  const MediaDeletionException(this.message);
+
+  static MediaDeletionException fromResponse(int status, String body) {
+    String detail = '';
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        detail = decoded['error']?.toString() ?? '';
+      }
+    } catch (_) {
+      // A non-JSON gateway error is still a failed deletion.
+    }
+    if (status == 401) {
+      return const MediaDeletionException(
+        'Your session expired. Sign in again and retry.',
+      );
+    }
+    if (status == 403) {
+      return const MediaDeletionException(
+        'You do not have permission to delete this post.',
+      );
+    }
+    if (status == 404) {
+      return const MediaDeletionException(
+        'This post is unavailable. Reopen your profile to check it.',
+      );
+    }
+    if (status == 409 && detail.contains('migration')) {
+      return const MediaDeletionException(
+        'This older upload needs a storage update before it can be deleted.',
+      );
+    }
+    if (status == 409) {
+      return const MediaDeletionException(
+        'The media file could not be verified for deletion.',
+      );
+    }
+    return MediaDeletionException(
+      'Delete failed (server $status). Please try again.',
+    );
+  }
+}
 
 class MediaWorkerService {
   static const String _baseUrl =
@@ -125,25 +171,65 @@ class MediaWorkerService {
   }
 
   Future<void> deleteMedia(String mediaId) async {
-    final session = _supabase.auth.currentSession;
+    var session = _supabase.auth.currentSession;
     if (session == null || session.user.isAnonymous) {
-      throw StateError('Sign in required.');
+      throw const MediaDeletionException('Sign in to delete your post.');
     }
-    final response = await http
-        .delete(
-          Uri.parse('$_baseUrl/media/${Uri.encodeComponent(mediaId)}'),
-          headers: {
-            'Authorization': 'Bearer ${session.accessToken}',
-            'Accept': 'application/json',
-          },
-        )
-        .timeout(const Duration(seconds: 30));
+    final expiresAt = session.expiresAt;
+    if (expiresAt != null &&
+        expiresAt <= DateTime.now().millisecondsSinceEpoch ~/ 1000 + 60) {
+      try {
+        session = (await _supabase.auth.refreshSession()).session;
+      } catch (_) {
+        throw const MediaDeletionException(
+          'Your session expired. Sign in again and retry.',
+        );
+      }
+      if (session == null) {
+        throw const MediaDeletionException(
+          'Your session expired. Sign in again and retry.',
+        );
+      }
+    }
+    final http.Response response;
+    try {
+      response = await http
+          .delete(
+            Uri.parse('$_baseUrl/media/${Uri.encodeComponent(mediaId)}'),
+            headers: {
+              'Authorization': 'Bearer ${session.accessToken}',
+              'Accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 60));
+    } on TimeoutException {
+      throw const MediaDeletionException(
+        'The request timed out. Check whether the post is gone before retrying.',
+      );
+    } on http.ClientException {
+      throw const MediaDeletionException(
+        'Could not connect. Check your internet connection and retry.',
+      );
+    }
     if (response.statusCode != 200) {
-      throw StateError('Media cleanup failed (${response.statusCode}).');
+      debugPrint('[DELETE] HTTP ${response.statusCode}: ${response.body}');
+      throw MediaDeletionException.fromResponse(
+        response.statusCode,
+        response.body,
+      );
     }
-    final body = jsonDecode(response.body);
+    dynamic body;
+    try {
+      body = jsonDecode(response.body);
+    } catch (_) {
+      throw const MediaDeletionException(
+        'The server did not confirm deletion. Please try again.',
+      );
+    }
     if (body is! Map<String, dynamic> || body['deleted'] != mediaId) {
-      throw StateError('Media server did not confirm deletion.');
+      throw const MediaDeletionException(
+        'The server did not confirm deletion. Please try again.',
+      );
     }
   }
 

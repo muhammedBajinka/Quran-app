@@ -222,8 +222,11 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            CreatorMediaFeedScreen(items: items, initialIndex: initialIndex),
+        builder: (_) => CreatorMediaFeedScreen(
+          items: items,
+          initialIndex: initialIndex,
+          allowManagement: _isOwnProfile,
+        ),
       ),
     );
     if (mounted) await _load();
