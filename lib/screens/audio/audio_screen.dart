@@ -1051,13 +1051,16 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
 
   Future<void> _playVideoIfReady() async {
     final controller = _videoController;
-
-    if (controller == null || !_videoInitialized) {
-      return;
+    if (controller == null || !_videoInitialized ||
+        !mounted || !widget.active || !_appForeground) return;
+    try {
+      if (controller.value.isCompleted) await controller.seekTo(Duration.zero);
+      if (mounted && widget.active && _appForeground) await controller.play();
+    } catch (error) {
+      if (!mounted) return;
+      unawaited(ErrorReportService.report('VIDEO_PLAYBACK_FAILED', error: error));
+      setState(() => _videoError = 'The video could not be played.');
     }
-
-    if (controller.value.isCompleted) await controller.seekTo(Duration.zero);
-    if (mounted && widget.active && _appForeground) await controller.play();
   }
 
   Future<void> _togglePlayback() async {
