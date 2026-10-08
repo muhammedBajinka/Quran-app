@@ -1,3 +1,5 @@
+import { deleteMedia } from "./delete-media.mjs";
+
 function getAccessToken(request) {
   const authorization = request.headers.get("Authorization");
 
@@ -110,7 +112,7 @@ function corsHeaders(request) {
 
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": [
       "Authorization",
       "Content-Type",
@@ -156,6 +158,22 @@ export default {
         status: 204,
         headers: corsHeaders(request),
       });
+    }
+
+    if (request.method === "DELETE" && url.pathname.startsWith("/media/")) {
+      try {
+        const response = await deleteMedia(request, {
+          ...env,
+          MEDIA_PUBLIC_BASE_URL: publicMediaBaseUrl,
+        });
+        if (!response) {
+          return jsonResponse(request, { error: "Invalid media ID" }, { status: 400 });
+        }
+        return jsonResponse(request, await response.json(), { status: response.status });
+      } catch (error) {
+        console.error("[DELETE] Failed:", error);
+        return jsonResponse(request, { error: "Deletion could not finish. Retry from your profile." }, { status: 502 });
+      }
     }
 
     if (url.pathname === "/health") {

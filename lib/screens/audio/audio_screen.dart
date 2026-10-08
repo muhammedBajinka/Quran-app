@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:video_player/video_player.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../profile/creator_profile_screen.dart';
+import '../profile/upload_media_screen.dart';
 
 import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
@@ -182,8 +186,8 @@ class _AudioScreenState extends State<AudioScreen> {
     _openCreatorProfile(creatorId);
   }
 
-  void _openCreatorProfile(String creatorId) {
-    Navigator.of(context).push(
+  Future<void> _openCreatorProfile(String creatorId) async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CreatorProfileScreen(creatorId: creatorId),
       ),
@@ -278,7 +282,7 @@ class _MediaSearchView extends StatelessWidget {
   final MediaSocialRepository socialRepository;
   final VoidCallback onBack;
   final ValueChanged<String> onSearch;
-  final ValueChanged<String> onCreatorPressed;
+  final Future<void> Function(String) onCreatorPressed;
 
   const _MediaSearchView({
     required this.controller,
@@ -508,18 +512,79 @@ class _TopNavigation extends StatelessWidget {
   }
 }
 
+class CreatorMediaFeedScreen extends StatefulWidget {
+  final List<MediaItem> items;
+  final int initialIndex;
+  const CreatorMediaFeedScreen({
+    super.key,
+    required this.items,
+    required this.initialIndex,
+  });
+
+  @override
+  State<CreatorMediaFeedScreen> createState() => _CreatorMediaFeedScreenState();
+}
+
+class _CreatorMediaFeedScreenState extends State<CreatorMediaFeedScreen> {
+  final _audio = MediaAudioController();
+  final _social = MediaSocialRepository();
+
+  @override
+  void dispose() {
+    _audio.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    body: Stack(
+      children: [
+        _UnifiedMediaFeed(
+          items: widget.items,
+          initialIndex: widget.initialIndex,
+          audioController: _audio,
+          socialRepository: _social,
+          onSwipeLeft: () {},
+          onSwipeRight: () {},
+          onCurrentItemChanged: (_) {},
+          onCreatorPressed: (id) async {
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => CreatorProfileScreen(creatorId: id),
+              ),
+            );
+          },
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: IconButton.filledTonal(
+              tooltip: 'Back',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _UnifiedMediaFeed extends StatefulWidget {
   final List<MediaItem> items;
+  final int initialIndex;
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
   final VoidCallback onSwipeLeft;
   final VoidCallback onSwipeRight;
   final ValueChanged<MediaItem> onCurrentItemChanged;
-  final ValueChanged<String> onCreatorPressed;
+  final Future<void> Function(String) onCreatorPressed;
 
   const _UnifiedMediaFeed({
     super.key,
     required this.items,
+    this.initialIndex = 0,
     required this.audioController,
     required this.socialRepository,
     required this.onSwipeLeft,
@@ -536,6 +601,10 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   late final PageController _pageController;
 
   int _currentIndex = 0;
+  late final List<MediaItem> _items;
+  bool _autoScroll = false;
+  bool _advancing = false;
+  StreamSubscription<PlayerState>? _audioSubscription;
   Offset? _pointerStart;
   bool _horizontalSwipeHandled = false;
 
@@ -543,14 +612,27 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   void initState() {
     super.initState();
 
-    _pageController = PageController();
+    _items = List.of(widget.items);
+    _currentIndex = widget.initialIndex.clamp(0, _items.length - 1);
+    _pageController = PageController(initialPage: _currentIndex);
+    _audioSubscription = widget.audioController.player.playerStateStream.listen(
+      (state) {
+        if (_items.isEmpty) return;
+        final item = _items[_currentIndex];
+        if (item.hasAudio &&
+            widget.audioController.currentItem?.id == item.id &&
+            state.processingState == ProcessingState.completed) {
+          _completed(item.id);
+        }
+      },
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.items.isEmpty) {
+      if (!mounted || _items.isEmpty) {
         return;
       }
 
-      final item = widget.items.first;
+      final item = _items[_currentIndex];
 
       widget.onCurrentItemChanged(item);
       _recordView(item);
@@ -568,14 +650,26 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 
   Future<void> _activateItem(MediaItem item) async {
     if (item.hasAudio) {
-      await widget.audioController.playItem(item);
+      try {
+        await widget.audioController.playItem(item);
+      } catch (_) {
+        if (mounted &&
+            _items.isNotEmpty &&
+            _items[_currentIndex].id == item.id) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not play this audio. Tap to retry.'),
+            ),
+          );
+        }
+      }
     } else {
       await widget.audioController.pause();
     }
   }
 
   void _pageChanged(int index) {
-    final item = widget.items[index];
+    final item = _items[index];
 
     setState(() {
       _currentIndex = index;
@@ -586,8 +680,47 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
     _activateItem(item);
   }
 
+  void _completed(String id) {
+    if (!mounted ||
+        !_autoScroll ||
+        _advancing ||
+        _items.isEmpty ||
+        _items[_currentIndex].id != id ||
+        _currentIndex + 1 >= _items.length ||
+        !_pageController.hasClients) {
+      return;
+    }
+    _advancing = true;
+    _pageController
+        .animateToPage(
+          _currentIndex + 1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        )
+        .whenComplete(() => _advancing = false);
+  }
+
+  void _deleted(String id) {
+    if (!mounted) return;
+    final index = _items.indexWhere((item) => item.id == id);
+    if (index < 0) return;
+    widget.audioController.pause();
+    setState(() {
+      _items.removeAt(index);
+      _currentIndex = _items.isEmpty
+          ? 0
+          : _currentIndex.clamp(0, _items.length - 1);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _items.isEmpty) return;
+      _pageController.jumpToPage(_currentIndex);
+      _pageChanged(_currentIndex);
+    });
+  }
+
   @override
   void dispose() {
+    _audioSubscription?.cancel();
     widget.audioController.pause();
     _pageController.dispose();
     super.dispose();
@@ -622,6 +755,14 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 
   @override
   Widget build(BuildContext context) {
+    if (_items.isEmpty) {
+      return const Center(
+        child: Text(
+          'No posts remaining.',
+          style: TextStyle(color: Colors.white),
+        ),
+      );
+    }
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _pointerDown,
@@ -631,10 +772,10 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
       child: PageView.builder(
         controller: _pageController,
         scrollDirection: Axis.vertical,
-        itemCount: widget.items.length,
+        itemCount: _items.length,
         onPageChanged: _pageChanged,
         itemBuilder: (context, index) {
-          final item = widget.items[index];
+          final item = _items[index];
 
           return _MediaFeedPage(
             key: ValueKey(item.id),
@@ -643,6 +784,10 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
             audioController: widget.audioController,
             socialRepository: widget.socialRepository,
             onCreatorPressed: widget.onCreatorPressed,
+            autoScroll: _autoScroll,
+            onAutoScrollChanged: (value) => setState(() => _autoScroll = value),
+            onCompleted: () => _completed(item.id),
+            onDeleted: () => _deleted(item.id),
           );
         },
       ),
@@ -653,14 +798,22 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 class _MediaFeedPage extends StatefulWidget {
   final MediaItem item;
   final bool active;
+  final bool autoScroll;
+  final ValueChanged<bool> onAutoScrollChanged;
+  final VoidCallback onCompleted;
+  final VoidCallback onDeleted;
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
-  final ValueChanged<String> onCreatorPressed;
+  final Future<void> Function(String) onCreatorPressed;
 
   const _MediaFeedPage({
     super.key,
     required this.item,
     required this.active,
+    required this.autoScroll,
+    required this.onAutoScrollChanged,
+    required this.onCompleted,
+    required this.onDeleted,
     required this.audioController,
     required this.socialRepository,
     required this.onCreatorPressed,
@@ -690,6 +843,8 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   double _speed = 1.0;
 
   String? _videoError;
+  bool _deleteBusy = false;
+  bool _completionReported = false;
 
   static const _speeds = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
 
@@ -707,22 +862,12 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   @override
   void didUpdateWidget(covariant _MediaFeedPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-
     if (oldWidget.active != widget.active) {
       if (widget.active) {
-        if (widget.item.hasVideo) {
-          widget.audioController.pause();
-          _playVideoIfReady();
-        } else if (widget.item.hasAudio) {
-          widget.audioController.playItem(widget.item);
-        }
+        _completionReported = false;
+        if (widget.item.hasVideo) _playVideoIfReady();
       } else {
         _videoController?.pause();
-
-        if (widget.item.hasAudio &&
-            widget.audioController.currentItem?.id == widget.item.id) {
-          widget.audioController.pause();
-        }
       }
     }
   }
@@ -798,15 +943,13 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       }
 
       await controller.setPlaybackSpeed(_speed);
+      if (!mounted) return;
 
       setState(() {
         _videoInitialized = true;
       });
 
-      if (widget.active) {
-        await widget.audioController.pause();
-        await controller.play();
-      }
+      if (widget.active) await controller.play();
     } catch (_) {
       if (!mounted) {
         return;
@@ -823,7 +966,14 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       return;
     }
 
-    final playing = _videoController!.value.isPlaying;
+    final value = _videoController!.value;
+    if (widget.active && value.isCompleted && !_completionReported) {
+      _completionReported = true;
+      widget.onCompleted();
+    } else if (!value.isCompleted) {
+      _completionReported = false;
+    }
+    final playing = value.isPlaying;
     final shouldShow = !playing;
 
     if (_showPlayButton != shouldShow) {
@@ -840,7 +990,8 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       return;
     }
 
-    await controller.play();
+    if (controller.value.isCompleted) await controller.seekTo(Duration.zero);
+    if (mounted && widget.active) await controller.play();
   }
 
   Future<void> _togglePlayback() async {
@@ -854,8 +1005,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       if (controller.value.isPlaying) {
         await controller.pause();
       } else {
-        await widget.audioController.pause();
-        await controller.play();
+        if (mounted && widget.active) await controller.play();
       }
 
       return;
@@ -956,6 +1106,59 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.swipe_up, color: Colors.white),
+                title: const Text(
+                  'Auto-scroll',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Next post when playback finishes',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                value: widget.autoScroll,
+                onChanged: (value) {
+                  Navigator.pop(sheetContext);
+                  widget.onAutoScrollChanged(value);
+                },
+              ),
+              if (!widget.item.published &&
+                  widget.item.creatorId != null &&
+                  widget.item.creatorId ==
+                      widget.socialRepository.currentUserId)
+                ListTile(
+                  leading: const Icon(Icons.edit_outlined, color: Colors.white),
+                  title: const Text(
+                    'Edit draft',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await Navigator.of(context).push(
+                      MaterialPageRoute<bool>(
+                        builder: (_) => EditDraftScreen(item: widget.item),
+                      ),
+                    );
+                  },
+                ),
+              if (widget.item.creatorId != null &&
+                  widget.item.creatorId ==
+                      widget.socialRepository.currentUserId)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                  ),
+                  title: const Text(
+                    'Delete',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                  enabled: !_deleteBusy,
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _deletePost();
+                  },
+                ),
               ListTile(
                 leading: const Icon(
                   Icons.download_outlined,
@@ -1013,6 +1216,59 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         );
       },
     );
+  }
+
+  Future<void> _deletePost() async {
+    if (_deleteBusy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this post?'),
+        content: const Text(
+          'This permanently removes your post and its media file.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _deleteBusy = true);
+    try {
+      await MediaRepository().deleteOwnMedia(widget.item);
+      if (mounted) widget.onDeleted();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Deletion could not finish. Refresh your profile and check Posts or Drafts before retrying.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _deleteBusy = false);
+    }
+  }
+
+  Future<void> _openCreator(String id) async {
+    _videoController?.pause();
+    await widget.audioController.pause();
+    await widget.onCreatorPressed(id);
+    if (!mounted || !widget.active) return;
+    if (widget.item.hasVideo) {
+      _playVideoIfReady();
+    } else if (widget.item.hasAudio) {
+      widget.audioController.playItem(widget.item);
+    }
   }
 
   Future<void> _showSpeedSheet() async {
@@ -1475,9 +1731,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           children: [
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: creatorId == null
-                  ? null
-                  : () => widget.onCreatorPressed(creatorId),
+              onTap: creatorId == null ? null : () => _openCreator(creatorId),
               child: Container(
                 padding: const EdgeInsets.all(2),
                 decoration: const BoxDecoration(
@@ -1583,7 +1837,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.item.creatorId == null
               ? null
-              : () => widget.onCreatorPressed(widget.item.creatorId!),
+              : () => _openCreator(widget.item.creatorId!),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(

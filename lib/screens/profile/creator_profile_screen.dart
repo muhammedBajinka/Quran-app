@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:video_player/video_player.dart';
+
+import '../audio/audio_screen.dart';
 
 import '../../data/media_repository.dart';
 import '../../data/media_social_repository.dart';
@@ -216,24 +216,17 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
     }
   }
 
-  Future<void> _openDraft(MediaItem item) async {
-    if (!_isOwnProfile) return;
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(builder: (_) => EditDraftScreen(item: item)),
-    );
-    if (changed == true && mounted) await _load();
-  }
-
   Future<void> _openMedia(List<MediaItem> items, int initialIndex) async {
-    if (items.isEmpty || initialIndex < 0 || initialIndex >= items.length) return;
+    if (items.isEmpty || initialIndex < 0 || initialIndex >= items.length) {
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => _CreatorMediaViewerScreen(
-          items: items,
-          initialIndex: initialIndex,
-        ),
+        builder: (_) =>
+            CreatorMediaFeedScreen(items: items, initialIndex: initialIndex),
       ),
     );
+    if (mounted) await _load();
   }
 
   Future<void> _openEditProfile() async {
@@ -327,7 +320,11 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
       if (_isOwnProfile)
         (label: 'Drafts', items: _drafts, empty: 'No drafts yet.'),
       if (_isOwnProfile)
-        (label: 'Private', items: _privatePosts, empty: 'No private posts yet.'),
+        (
+          label: 'Private',
+          items: _privatePosts,
+          empty: 'No private posts yet.',
+        ),
       (label: 'Reposts', items: _reposts, empty: 'No reposts yet.'),
       (label: 'Likes', items: _likedPosts, empty: 'No liked posts yet.'),
     ];
@@ -352,7 +349,10 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
               onUpload: _openUpload,
             ),
           ),
-          if (_isOwnProfile && CreatorUploadQueue.instance.jobs.any((job) => job.state != CreatorUploadState.completed))
+          if (_isOwnProfile &&
+              CreatorUploadQueue.instance.jobs.any(
+                (job) => job.state != CreatorUploadState.completed,
+              ))
             SliverToBoxAdapter(
               child: _UploadQueuePanel(
                 jobs: CreatorUploadQueue.instance.jobs,
@@ -374,9 +374,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
                 items: tab.items,
                 viewCounts: _viewCounts,
                 emptyMessage: tab.empty,
-                onOpen: (index) => tab.label == 'Drafts'
-                    ? _openDraft(tab.items[index])
-                    : _openMedia(tab.items, index),
+                onOpen: (index) => _openMedia(tab.items, index),
               ),
           ],
         ),
@@ -398,14 +396,15 @@ class _UploadQueuePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = jobs
-        
-        .toList();
+    final pending = jobs.toList();
     if (pending.isEmpty) return const SizedBox.shrink();
 
     final failed = pending
-        .where((job) => job.state == CreatorUploadState.failed ||
-            job.state == CreatorUploadState.needsReview)
+        .where(
+          (job) =>
+              job.state == CreatorUploadState.failed ||
+              job.state == CreatorUploadState.needsReview,
+        )
         .length;
     final label = failed > 0
         ? 'Uploads · ${pending.length} · $failed failed'
@@ -435,9 +434,7 @@ class _UploadQueuePanel extends StatelessWidget {
       builder: (sheetContext) => AnimatedBuilder(
         animation: queue,
         builder: (context, _) {
-          final pending = queue.jobs
-              
-              .toList(growable: false);
+          final pending = queue.jobs.toList(growable: false);
           return SafeArea(
             child: ListView(
               shrinkWrap: true,
@@ -505,7 +502,8 @@ class _UploadQueuePanel extends StatelessWidget {
             ),
         ],
       ),
-      trailing: (job.state == CreatorUploadState.failed ||
+      trailing:
+          (job.state == CreatorUploadState.failed ||
               job.state == CreatorUploadState.needsReview ||
               job.state == CreatorUploadState.completed)
           ? Row(
@@ -603,7 +601,11 @@ class _ProfileMediaGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final columns = width >= 900 ? 6 : width >= 600 ? 4 : 3;
+        final columns = width >= 900
+            ? 6
+            : width >= 600
+            ? 4
+            : 3;
         return GridView.builder(
           key: PageStorageKey<String>(emptyMessage),
           padding: const EdgeInsets.all(2),
@@ -872,44 +874,46 @@ class _ProfileMediaTile extends StatelessWidget {
         child: Container(
           color: const Color(0xFFF1F4F2),
           child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (thumbnail != null && thumbnail.isNotEmpty)
-            Image.network(
-              thumbnail,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _fallback(),
-            )
-          else
-            _fallback(),
-          Positioned(
-            left: 7,
-            bottom: 7,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  item.hasVideo
-                      ? Icons.play_arrow_rounded
-                      : Icons.graphic_eq_rounded,
-                  color: Colors.white,
-                  size: 20,
-                  shadows: const [Shadow(blurRadius: 6, color: Colors.black87)],
+            fit: StackFit.expand,
+            children: [
+              if (thumbnail != null && thumbnail.isNotEmpty)
+                Image.network(
+                  thumbnail,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _fallback(),
+                )
+              else
+                _fallback(),
+              Positioned(
+                left: 7,
+                bottom: 7,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      item.hasVideo
+                          ? Icons.play_arrow_rounded
+                          : Icons.graphic_eq_rounded,
+                      color: Colors.white,
+                      size: 20,
+                      shadows: const [
+                        Shadow(blurRadius: 6, color: Colors.black87),
+                      ],
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      _compactNumber(viewCount),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        shadows: [Shadow(blurRadius: 6, color: Colors.black87)],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 2),
-                Text(
-                  _compactNumber(viewCount),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    shadows: [Shadow(blurRadius: 6, color: Colors.black87)],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
           ),
         ),
       ),
@@ -946,229 +950,6 @@ class _ProfileMediaTile extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CreatorMediaViewerScreen extends StatefulWidget {
-  final List<MediaItem> items;
-  final int initialIndex;
-  const _CreatorMediaViewerScreen({required this.items, required this.initialIndex});
-  @override
-  State<_CreatorMediaViewerScreen> createState() => _CreatorMediaViewerScreenState();
-}
-
-class _CreatorMediaViewerScreenState extends State<_CreatorMediaViewerScreen> {
-  late final PageController _pageController;
-  late int _currentIndex;
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
-  }
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            PageView.builder(
-              controller: _pageController,
-              scrollDirection: Axis.vertical,
-              itemCount: widget.items.length,
-              onPageChanged: (index) => setState(() => _currentIndex = index),
-              itemBuilder: (context, index) {
-                final item = widget.items[index];
-                final active = index == _currentIndex;
-                return item.hasVideo
-                    ? _ProfileVideoPage(item: item, active: active)
-                    : _ProfileAudioPage(item: item, active: active);
-              },
-            ),
-            Positioned(
-              top: 8,
-              left: 8,
-              child: IconButton.filledTonal(
-                tooltip: 'Back',
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.arrow_back),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileVideoPage extends StatefulWidget {
-  final MediaItem item;
-  final bool active;
-  const _ProfileVideoPage({required this.item, required this.active});
-  @override
-  State<_ProfileVideoPage> createState() => _ProfileVideoPageState();
-}
-
-class _ProfileVideoPageState extends State<_ProfileVideoPage> {
-  late final VideoPlayerController _controller;
-  bool _ready = false;
-  bool _failed = false;
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.item.videoUrl!));
-    _initialize();
-  }
-  Future<void> _initialize() async {
-    try {
-      await _controller.initialize();
-      await _controller.setLooping(true);
-      if (widget.active) await _controller.play();
-      if (mounted) setState(() => _ready = true);
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
-    }
-  }
-  @override
-  void didUpdateWidget(covariant _ProfileVideoPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_ready || oldWidget.active == widget.active) return;
-    widget.active ? _controller.play() : _controller.pause();
-  }
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-  @override
-  Widget build(BuildContext context) {
-    if (_failed) {
-      return const Center(child: Text('This video could not be loaded.', style: TextStyle(color: Colors.white)));
-    }
-    if (!_ready) return const Center(child: CircularProgressIndicator(color: Colors.white));
-    return GestureDetector(
-      onTap: () {
-        _controller.value.isPlaying ? _controller.pause() : _controller.play();
-        setState(() {});
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Center(
-            child: AspectRatio(
-              aspectRatio: _controller.value.aspectRatio > 0 ? _controller.value.aspectRatio : 9 / 16,
-              child: VideoPlayer(_controller),
-            ),
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 24,
-            child: Text(
-              widget.item.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                shadows: [Shadow(blurRadius: 6, color: Colors.black)],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileAudioPage extends StatefulWidget {
-  final MediaItem item;
-  final bool active;
-  const _ProfileAudioPage({required this.item, required this.active});
-  @override
-  State<_ProfileAudioPage> createState() => _ProfileAudioPageState();
-}
-
-class _ProfileAudioPageState extends State<_ProfileAudioPage> {
-  final AudioPlayer _player = AudioPlayer();
-  bool _ready = false;
-  bool _failed = false;
-  @override
-  void initState() {
-    super.initState();
-    _initialize();
-  }
-  Future<void> _initialize() async {
-    try {
-      await _player.setUrl(widget.item.audioUrl!);
-      if (widget.active) await _player.play();
-      if (mounted) setState(() => _ready = true);
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
-    }
-  }
-  @override
-  void didUpdateWidget(covariant _ProfileAudioPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_ready || oldWidget.active == widget.active) return;
-    widget.active ? _player.play() : _player.pause();
-  }
-  @override
-  void dispose() {
-    _player.dispose();
-    super.dispose();
-  }
-  @override
-  Widget build(BuildContext context) {
-    if (_failed) {
-      return const Center(child: Text('This audio could not be loaded.', style: TextStyle(color: Colors.white)));
-    }
-    if (!_ready) return const Center(child: CircularProgressIndicator(color: Colors.white));
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircleAvatar(
-              radius: 54,
-              backgroundColor: Color(0xFF2E7D5B),
-              child: Icon(Icons.graphic_eq, size: 52, color: Colors.white),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              widget.item.title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
-            ),
-            if (widget.item.speaker?.trim().isNotEmpty == true) ...[
-              const SizedBox(height: 8),
-              Text(widget.item.speaker!.trim(), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
-            ],
-            const SizedBox(height: 24),
-            StreamBuilder<PlayerState>(
-              stream: _player.playerStateStream,
-              builder: (context, snapshot) {
-                final playing = snapshot.data?.playing ?? false;
-                return IconButton.filled(
-                  tooltip: playing ? 'Pause' : 'Play',
-                  iconSize: 34,
-                  onPressed: () => playing ? _player.pause() : _player.play(),
-                  icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                );
-              },
             ),
           ],
         ),
