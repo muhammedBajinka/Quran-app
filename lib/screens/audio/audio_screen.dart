@@ -1062,7 +1062,9 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
     } catch (error) {
       if (!mounted) return;
       unawaited(ErrorReportService.report('VIDEO_PLAYBACK_FAILED', error: error));
-      setState(() => _videoError = 'The video could not be played.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not play this video. Tap to retry.')),
+      );
     }
   }
 
@@ -1078,7 +1080,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
       if (controller.value.isPlaying) {
         await controller.pause();
       } else {
-        if (mounted && widget.active && _appForeground && !_creatorOpening) await controller.play();
+        await _playVideoIfReady();
       }
 
       return;
