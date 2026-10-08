@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'error_report_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -203,6 +205,7 @@ class CreatorUploadQueue extends ChangeNotifier {
         ..progress = 1;
       notifyListeners();
     } catch (error) {
+      unawaited(ErrorReportService.report('UPLOAD_FAILED', error: error));
       if (job.uploadAttempted && job.mediaId == null) {
         job
           ..state = CreatorUploadState.needsReview

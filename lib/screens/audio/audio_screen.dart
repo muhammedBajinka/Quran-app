@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../services/error_report_service.dart';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -701,7 +702,8 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
     if (item.hasAudio) {
       try {
         await widget.audioController.playItem(item);
-      } catch (_) {
+      } catch (error) {
+      unawaited(ErrorReportService.report('AUDIO_PLAYBACK_FAILED', error: error));
         if (mounted &&
             _items.isNotEmpty &&
             _items[_currentIndex].id == item.id) {
@@ -973,7 +975,8 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
         _commentCount = commentCount;
         _repostCount = repostCount;
       });
-    } catch (_) {
+    } catch (error) {
+      unawaited(ErrorReportService.report('SOCIAL_LOAD_FAILED', error: error));
       // The Media itself should remain usable even if
       // one social request temporarily fails.
     }
@@ -1007,7 +1010,8 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       });
 
       if (widget.active) await controller.play();
-    } catch (_) {
+    } catch (error) {
+      unawaited(ErrorReportService.report('VIDEO_PLAYBACK_FAILED', error: error));
       if (!mounted) {
         return;
       }
@@ -1314,8 +1318,10 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       await MediaRepository().deleteOwnMedia(widget.item);
       deleted = true;
     } on MediaDeletionException catch (error) {
+      unawaited(ErrorReportService.report('DELETE_FAILED', error: error));
       failure = error.message;
-    } catch (_) {
+    } catch (error) {
+      unawaited(ErrorReportService.report('DELETE_FAILED', error: error));
       failure = 'Could not delete this post. Please try again.';
     } finally {
       if (progress.isActive) navigator.removeRoute(progress);
@@ -2233,7 +2239,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
         _sending = false;
         _load();
       });
-    } catch (_) {
+    } catch (error) {
+      unawaited(ErrorReportService.report('COMMENT_FAILED', error: error));
       if (!mounted) {
         return;
       }

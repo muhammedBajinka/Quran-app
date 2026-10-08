@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../services/error_report_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -46,7 +48,9 @@ class MediaAudioController extends ChangeNotifier {
       if (request == _playRequest) _player.play();
     });
     // A failed source must not poison the queue for later clips.
-    _loadTail = operation.catchError((Object _) {});
+    _loadTail = operation.catchError((Object error) {
+      unawaited(ErrorReportService.report('AUDIO_PLAYBACK_FAILED', error: error));
+    });
     return operation;
   }
 

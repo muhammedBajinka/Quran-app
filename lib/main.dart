@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'screens/memorization/memorization_screen.dart';
 import 'screens/settings/settings_screen.dart';
 import 'screens/quran/quran_screen.dart';
 import 'services/analytics_service.dart';
+import 'services/error_report_service.dart';
 import 'services/media_links.dart';
 import 'state/audio/media_audio_controller.dart';
 import 'state/audio/quran_audio_controller.dart';
@@ -27,6 +29,17 @@ Future<void> main() async {
     url: const String.fromEnvironment('SUPABASE_URL'),
     publishableKey: const String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY'),
   );
+
+  final previousFlutterError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    previousFlutterError?.call(details);
+    unawaited(ErrorReportService.report('APP_CRASH', error: details.exception));
+  };
+  final previousPlatformError = PlatformDispatcher.instance.onError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    unawaited(ErrorReportService.report('APP_CRASH', error: error));
+    return previousPlatformError?.call(error, stack) ?? false;
+  };
 
   final supabase = Supabase.instance.client;
 
@@ -161,6 +174,7 @@ class _QuranHomePageState extends State<QuranHomePage> {
         _reciters = reciters;
       });
     } catch (error) {
+      unawaited(ErrorReportService.report('RECITERS_LOAD_FAILED', error: error));
       debugPrint('Failed to load backend reciters: $error');
 
       if (!mounted) {
