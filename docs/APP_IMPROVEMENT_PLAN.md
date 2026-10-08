@@ -42,3 +42,8 @@ Each run must append its PR/commit, checks and deployment results, next action a
 - Android accepts the canonical HTTPS links when delivered to the app and handles cold/warm launches. Automatic OS app opening still requires domain verification at the GitHub Pages domain root and device tests; web links work as the fallback.
 - Thumbnail upsert/retry now has owner read access before finalization, while other unfinalized thumbnails stay private. The upload form checks the bucket's 5 MB thumbnail limit, and failed queue entries show full readable errors with retry below the message.
 - Validation: rolled-back Supabase fixtures cover creation RPC defaults, old-post preservation, comment/follower restrictions and owner-only unfinalized thumbnail reads. Worker regression tests pass. Flutter tests and web compilation are required by PR CI.
+
+
+## 9 October hourly release repair queue
+
+See [24_HOUR_RELEASE_PLAN.md](24_HOUR_RELEASE_PLAN.md). Reports failed because human labels did not match canonical database reason codes. A compatibility trigger is live and a rollback reporter/admin integration test passed. Media handle badges and category/creator gestures are being released together with regression tests. Follow the new finite 24-run queue and repair failed builds before advancing.

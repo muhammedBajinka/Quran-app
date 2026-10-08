@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/media_social_repository.dart';
 import '../models/audio/media_item.dart';
+import 'media_creator_identity.dart';
 
 /// Search previews do not create players. Playback starts after a tap.
 class MediaSearchResults extends StatelessWidget {
@@ -54,14 +55,14 @@ class MediaSearchResults extends StatelessWidget {
                       ? null
                       : const Icon(Icons.person),
                 ),
-                title: Text(
-                  creator.visibleName,
-                  style: const TextStyle(color: Colors.white),
+                title: MediaCreatorIdentity(
+                  creator: creator,
+                  fallbackName: creator.visibleName,
                 ),
                 subtitle: creator.username == null
                     ? null
                     : Text(
-                        '@${creator.username}',
+                        creator.visibleName,
                         style: const TextStyle(color: Colors.white70),
                       ),
                 trailing: const Icon(
