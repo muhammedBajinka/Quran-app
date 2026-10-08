@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../lib/services/error_report_service.dart';
+import 'package:quran_app/services/error_report_service.dart';
 
 void main() {
   test('reports stable codes without copying private error text', () {
@@ -9,6 +9,7 @@ void main() {
     expect(ErrorReportService.technicalCode(const PostgrestException(message: 'private', code: 'token=secret')), isNull);
     expect(ErrorReportService.technicalCode(StateError('Worker HTTP 503: private title and token')), 'HTTP_503');
     expect(ErrorReportService.technicalCode(StateError('https://private.example?token=secret')), isNull);
+    expect(ErrorReportService.technicalCode(StateError('Media HTTP 403: download failed.')), 'HTTP_403');
     expect(ErrorReportService.technicalCode(TimeoutException('private URL')), 'TIMEOUT');
   });
 

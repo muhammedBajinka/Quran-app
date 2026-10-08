@@ -19,7 +19,7 @@ class ErrorReportService {
     if (code != null && RegExp(r'^[A-Za-z0-9_-]{1,40}$').hasMatch(code)) {
       return code;
     }
-    final http = RegExp(r'Worker HTTP ([1-5][0-9]{2}):').firstMatch(error.toString());
+    final http = RegExp(r'(?:Worker|Media) HTTP ([1-5][0-9]{2}):').firstMatch(error.toString());
     return http == null ? null : 'HTTP_${http.group(1)}';
   }
 
