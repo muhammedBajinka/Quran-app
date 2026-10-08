@@ -27,39 +27,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _authService = AuthService();
 
-  Future<void> _shareApp(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-
-    try {
-      final config = await AppConfigService().loadConfig();
-      final release = config.currentRelease;
-
-      if (release == null || release.downloadUrl.trim().isEmpty) {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('The app download link is not available yet.'),
-          ),
-        );
-        return;
-      }
-
-      final message = config.shareMessage.trim();
-      final downloadUrl = release.downloadUrl.trim();
-
-      final shareText = message.isEmpty
-          ? downloadUrl
-          : '$message\n\n$downloadUrl';
-
-      await SharePlus.instance.share(ShareParams(text: shareText));
-    } catch (_) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Quran Life could not be shared right now. Try again.'),
-        ),
-      );
-    }
-  }
-
   Widget _buildAccountRow() {
     final user = _authService.currentUser;
     final hasAccount = user != null && !user.isAnonymous;
@@ -190,17 +157,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _SettingsTile(
           icon: Icons.share_outlined,
           title: 'Share App',
-          subtitle: 'Share Quran Life',
-          onTap: () => _shareApp(context),
-        ),
-
-        _SettingsTile(
-          icon: Icons.qr_code_2,
-          title: 'QR Code',
-          subtitle: 'Scan to open Quran Life',
+          subtitle: 'Share the link or scan the QR code',
           onTap: () {
-            Navigator.of(context)
-                .push(MaterialPageRoute(builder: (_) => const _QrCodePage()));
+            Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const _ShareAppPage(),
+            ));
           },
         ),
 
@@ -241,18 +202,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-class _QrCodePage extends StatefulWidget {
-  const _QrCodePage();
+class _ShareAppPage extends StatefulWidget {
+  const _ShareAppPage();
 
   @override
-  State<_QrCodePage> createState() => _QrCodePageState();
+  State<_ShareAppPage> createState() => _ShareAppPageState();
 }
 
-class _QrCodePageState extends State<_QrCodePage> {
+class _ShareAppPageState extends State<_ShareAppPage> {
   late final Future<String> _urlFuture = _loadUrl();
+  String _shareMessage = '';
+  bool _sharing = false;
+
+  Future<void> _shareLink(String url) async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final text = _shareMessage.isEmpty ? url : '$_shareMessage\n\n$url';
+      await SharePlus.instance.share(ShareParams(text: text));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not open sharing. You can copy the link below.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
 
   Future<String> _loadUrl() async {
     final config = await AppConfigService().loadConfig();
+    _shareMessage = config.shareMessage.trim();
     final release = config.currentRelease;
 
     if (release == null || release.downloadUrl.trim().isEmpty) {
@@ -266,7 +246,7 @@ class _QrCodePageState extends State<_QrCodePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quran Life QR Code'),
+        title: const Text('Share App'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -313,7 +293,13 @@ class _QrCodePageState extends State<_QrCodePage> {
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 16),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: _sharing ? null : () => _shareLink(url),
+                    icon: const Icon(Icons.share_outlined),
+                    label: Text(_sharing ? 'Opening share…' : 'Share link'),
+                  ),
+                  const SizedBox(height: 20),
                   Card(
                     elevation: 2,
                     child: Padding(
