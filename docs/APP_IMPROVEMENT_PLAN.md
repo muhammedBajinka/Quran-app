@@ -47,3 +47,11 @@ Each run must append its PR/commit, checks and deployment results, next action a
 ## 9 October hourly release repair queue
 
 See [24_HOUR_RELEASE_PLAN.md](24_HOUR_RELEASE_PLAN.md). Reports failed because human labels did not match canonical database reason codes. A compatibility trigger is live and a rollback reporter/admin integration test passed. Media handle badges and category/creator gestures are being released together with regression tests. Follow the new finite 24-run queue and repair failed builds before advancing.
+
+
+### PR #17 release checkpoint
+
+- Merged 0e343e71e9e51142a9596aad7bd382a33cea61c6; regression run 37853610723 passed analyzer, focused Flutter tests, 17 Worker tests, deployed download smoke and web compilation.
+- Main web deployment 37853851058 passed. Browser confirmed verification beside @admin, video playback, swipe and tap creator entry, return/resume, category navigation including empty Following, and seeking without switching tabs.
+- Report compatibility migration 20261008222233 is live. Six reason-code normalization and anonymous reporting tests passed with rollback; admin read access and reporter isolation were verified.
+- Signed APK/AAB run 37853851065 passed; both signed artifacts are available. Next action: task 6 (playback/lifecycle) after checking current builds. No Android device testing has been performed.

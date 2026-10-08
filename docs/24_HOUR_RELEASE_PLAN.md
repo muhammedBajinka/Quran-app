@@ -8,7 +8,7 @@ At every run inspect the oldest and newest relevant PRs and latest main CI/deplo
 
 | Hour / priority | Task | Completion evidence |
 |---|---|---|
-| 1 | Reports to admin | Six reasons reach admin; reporter cannot read or self-review. Database check passed; app CI pending. |
+| 1 | Reports to admin | Six reasons reach admin; reporter cannot read or self-review. Passed: database reporter/admin and anonymous-session checks; app CI and web deployment. |
 | 2 | Verified Media identity | Chosen @handle and backend badge appear together; unverified creators have no badge. |
 | 3 | Category gestures | Both directions match tab order; vertical scrolling and sliders retain their gestures. |
 | 4 | Creator navigation | Swipe left beyond For You or tap Creator/handle; pause and resume playback. |
@@ -35,4 +35,6 @@ At every run inspect the oldest and newest relevant PRs and latest main CI/deplo
 
 ## Current handoff
 
-The compatibility migration for report reason labels is live. The rollback integration check passed for all six reasons, admin visibility, reporter inbox isolation and rejection of reporter self-review. Tasks 2–5 are implemented in the current Media repair PR and require passing CI and deployment before being marked complete. Flutter version is 1.0.1+4. No device tests have been performed. Cloudflare deployment credentials are unavailable in this session; document any Worker deploy requirement instead of claiming it deployed.
+The compatibility migration for report reason labels is live. The rollback integration check passed for all six reasons, admin visibility, reporter inbox isolation and rejection of reporter self-review. Tasks 1–5 are completed in merged PR #17. Regression CI, analyzer, focused tests and main web deployment passed. Live browser confirmed chosen-handle verification, playback, swipe/tap creator entry, return/resume, rightward category navigation, empty-feed navigation and seeking without category changes. Signed Android APK and Play Store AAB run 37853851065 passed; both artifacts are available. The next hourly run starts at task 6 after checking current builds. Flutter version is 1.0.1+4. No device tests have been performed. Cloudflare deployment credentials are unavailable in this session; document any Worker deploy requirement instead of claiming it deployed.
+
+Additional audit findings to inspect in the queued tasks: the old `test/widget_test.dart` still expects the former Audio label and lacks current backend/platform initialization; replace it with a meaningful startup regression, then run the full suite. Large downloads are currently buffered in memory; consider bounded/native streaming. HTTPS automatic app opening still needs domain verification and Android device checks. Account deletion currently submits an admin request; verify actual completion and the external deletion route before Play release.
