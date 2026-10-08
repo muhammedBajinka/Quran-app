@@ -865,6 +865,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
   CreatorProfile? _creator;
   bool _reportSending = false;
 
+  bool _creatorOpening = false;
   bool _appForeground = true;
   bool _resumeVideoOnForeground = false;
   bool _videoInitialized = false;
@@ -912,7 +913,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
     final foreground = state == AppLifecycleState.resumed;
     if (!mounted || foreground == _appForeground) return;
     if (!foreground) {
-      _resumeVideoOnForeground = widget.active &&
+      _resumeVideoOnForeground = widget.active && !_creatorOpening &&
           (_videoController?.value.isPlaying == true || !_videoInitialized);
       _videoController?.pause();
     }
@@ -1014,7 +1015,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
         _videoInitialized = true;
       });
 
-      if (widget.active && _appForeground) await controller.play();
+      if (widget.active && _appForeground && !_creatorOpening) await controller.play();
     } catch (error) {
       unawaited(ErrorReportService.report('VIDEO_PLAYBACK_FAILED', error: error));
       if (!mounted) {
@@ -1052,12 +1053,12 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
   Future<void> _playVideoIfReady() async {
     final controller = _videoController;
     if (controller == null || !_videoInitialized ||
-        !mounted || !widget.active || !_appForeground) {
+        !mounted || !widget.active || !_appForeground || _creatorOpening) {
       return;
     }
     try {
       if (controller.value.isCompleted) await controller.seekTo(Duration.zero);
-      if (mounted && widget.active && _appForeground) await controller.play();
+      if (mounted && widget.active && _appForeground && !_creatorOpening) await controller.play();
     } catch (error) {
       if (!mounted) return;
       unawaited(ErrorReportService.report('VIDEO_PLAYBACK_FAILED', error: error));
@@ -1077,7 +1078,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
       if (controller.value.isPlaying) {
         await controller.pause();
       } else {
-        if (mounted && widget.active && _appForeground) await controller.play();
+        if (mounted && widget.active && _appForeground && !_creatorOpening) await controller.play();
       }
 
       return;
@@ -1350,14 +1351,27 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
   }
 
   Future<void> _openCreator(String id) async {
-    _videoController?.pause();
-    await widget.audioController.pause();
-    await widget.onCreatorPressed(id);
-    if (!mounted || !widget.active) return;
-    if (widget.item.hasVideo) {
-      _playVideoIfReady();
-    } else if (widget.item.hasAudio) {
-      widget.audioController.playItem(widget.item);
+    if (_creatorOpening) return;
+    _creatorOpening = true;
+    try {
+      await _videoController?.pause();
+      await widget.audioController.pause();
+      if (!mounted) return;
+      await widget.onCreatorPressed(id);
+    } finally {
+      _creatorOpening = false;
+      if (mounted && widget.active) {
+        if (widget.item.hasVideo) {
+          _resumeVideoOnForeground = true;
+          await _playVideoIfReady();
+        } else if (widget.item.hasAudio) {
+          try {
+            await widget.audioController.playItem(widget.item);
+          } catch (error) {
+            unawaited(ErrorReportService.report('AUDIO_PLAYBACK_FAILED', error: error));
+          }
+        }
+      }
     }
   }
 
