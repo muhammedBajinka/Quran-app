@@ -55,3 +55,11 @@ See [24_HOUR_RELEASE_PLAN.md](24_HOUR_RELEASE_PLAN.md). Reports failed because h
 - Main web deployment 37853851058 passed. Browser confirmed verification beside @admin, video playback, swipe and tap creator entry, return/resume, category navigation including empty Following, and seeking without switching tabs.
 - Report compatibility migration 20261008222233 is live. Six reason-code normalization and anonymous reporting tests passed with rollback; admin read access and reporter isolation were verified.
 - Signed APK/AAB run 37853851065 passed; both signed artifacts are available. Next action: task 6 (playback/lifecycle) after checking current builds. No Android device testing has been performed.
+
+
+### Playback/lifecycle repair (9 October 2026)
+
+- Baseline cdb8fca94803660e05dc4213321a0c504808f0cb; no open app/admin PRs. Previous signed APK/AAB run 37853851065 and web run 37853851058 passed. Admin checks 37848683230 and current Vercel deployment passed.
+- Task 6: serialize closing and pause acknowledgements with source changes; cancel stale load/replay operations; remember the most recently requested clip and manual pause across app backgrounding; handle asynchronous play errors and disposal.
+- Video initialization and replay now require foreground; background completion cannot trigger Auto-scroll. Visible video resumes only when it was playing or still loading before the interruption.
+- Add delayed-player tests for rapid source replacement, loading/background/manual pause, late close/pause, completed seek, failed source/play and disposal. CI and subsequent release results are pending; do not advance to task 7 until verified. Android device behavior still needs testing.
