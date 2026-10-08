@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../services/error_report_service.dart';
 import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -70,7 +72,13 @@ class MediaRepository {
       query = query.eq('content_type', contentType.name);
     }
 
-    final rows = await query.order('created_at', ascending: false);
+    final dynamic rows;
+    try {
+      rows = await query.order('created_at', ascending: false);
+    } catch (error) {
+      unawaited(ErrorReportService.report('FEED_LOAD_FAILED', error: error));
+      rethrow;
+    }
 
     final items = await _withSignedThumbnails(_mapRows(rows));
 

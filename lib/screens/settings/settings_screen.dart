@@ -644,6 +644,20 @@ class _PrivacyPage extends StatelessWidget {
           ),
           SizedBox(height: 24),
           Text(
+            'Error diagnostics',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'To help fix problems, the app sends limited error reports to Supabase. '
+            'Reports contain an error code, technical code when available, time, '
+            'platform, app version and build number. They are linked to your '
+            'account or anonymous session identifier and are visible only to admins. '
+            'Reports do not contain passwords, access tokens, private messages, '
+            'uploaded content, filenames or raw exception text.',
+          ),
+          SizedBox(height: 24),
+          Text(
             'Accounts and public profiles',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
           ),

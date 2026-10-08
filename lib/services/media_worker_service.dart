@@ -1,3 +1,4 @@
+import 'error_report_service.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -164,6 +165,7 @@ class MediaWorkerService {
       debugPrint('[UPLOAD] Worker upload succeeded.');
       return decoded;
     } catch (error, stackTrace) {
+      unawaited(ErrorReportService.report('WORKER_UPLOAD_FAILED', error: error, source: 'media_worker'));
       debugPrint('[UPLOAD] FAILURE: $error');
       debugPrintStack(stackTrace: stackTrace);
       rethrow;
@@ -202,16 +204,19 @@ class MediaWorkerService {
             },
           )
           .timeout(const Duration(seconds: 60));
-    } on TimeoutException {
+    } on TimeoutException catch (error) {
+      unawaited(ErrorReportService.report('DELETE_FAILED', error: error, source: 'media_worker'));
       throw const MediaDeletionException(
         'The request timed out. Check whether the post is gone before retrying.',
       );
-    } on http.ClientException {
+    } on http.ClientException catch (error) {
+      unawaited(ErrorReportService.report('DELETE_FAILED', error: error, source: 'media_worker'));
       throw const MediaDeletionException(
         'Could not connect. Check your internet connection and retry.',
       );
     }
     if (response.statusCode != 200) {
+      unawaited(ErrorReportService.report('DELETE_FAILED', error: StateError('Worker HTTP ${response.statusCode}:'), source: 'media_worker'));
       debugPrint('[DELETE] HTTP ${response.statusCode}: ${response.body}');
       throw MediaDeletionException.fromResponse(
         response.statusCode,

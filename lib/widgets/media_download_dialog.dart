@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../services/error_report_service.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -55,7 +57,8 @@ class _MediaDownloadDialogState extends State<MediaDownloadDialog> {
       if (mounted) {
         setState(() => _bytes = data);
       }
-    } catch (_) {
+    } catch (error) {
+      if (mounted) unawaited(ErrorReportService.report('DOWNLOAD_FAILED', error: error));
       if (mounted) {
         setState(() => _error = 'Download failed. Close and try again.');
       }
@@ -86,7 +89,8 @@ class _MediaDownloadDialogState extends State<MediaDownloadDialog> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(kIsWeb ? 'Download sent to your browser.' : 'Media file saved.'),
       ));
-    } catch (_) {
+    } catch (error) {
+      unawaited(ErrorReportService.report('SAVE_FAILED', error: error));
       if (mounted) {
         setState(() {
           _saving = false;

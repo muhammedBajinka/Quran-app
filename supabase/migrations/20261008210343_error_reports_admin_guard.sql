@@ -1,0 +1,2 @@
+alter policy admins_read_errors on public.error_reports using (((select auth.jwt()->>'is_anonymous')::boolean is not true) and exists (select 1 from public.admin_users where user_id = (select auth.uid())));
+alter policy admins_update_error_status on public.error_reports using (((select auth.jwt()->>'is_anonymous')::boolean is not true) and exists (select 1 from public.admin_users where user_id = (select auth.uid()))) with check (((select auth.jwt()->>'is_anonymous')::boolean is not true) and exists (select 1 from public.admin_users where user_id = (select auth.uid())));

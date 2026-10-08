@@ -1,3 +1,5 @@
+import 'dart:async';
+import '../../services/error_report_service.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -211,7 +213,8 @@ class _VideoFeedPageState extends State<_VideoFeedPage> {
       if (widget.active) {
         await controller.play();
       }
-    } catch (_) {
+    } catch (error) {
+      unawaited(ErrorReportService.report('VIDEO_PLAYBACK_FAILED', error: error));
       if (!mounted) return;
 
       setState(() {

@@ -21,7 +21,7 @@ class MediaDownload {
       final response = await client.send(request)
           .timeout(const Duration(seconds: 30));
       if (response.statusCode != 200) {
-        throw StateError('The media file could not be downloaded.');
+        throw StateError('Media HTTP ${response.statusCode}: download failed.');
       }
       final total = response.contentLength;
       final bytes = BytesBuilder(copy: false);
