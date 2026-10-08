@@ -82,7 +82,7 @@ class MediaSocialRepository {
     final row = await _client
         .from('profiles')
         .select(
-          'user_id, username, display_name, bio, avatar_url, is_suspended, is_verified',
+          'user_id, username, display_name, bio, avatar_url, is_suspended, is_verified, moderation_reason',
         )
         .eq('user_id', creatorId)
         .maybeSingle();
@@ -103,7 +103,7 @@ class MediaSocialRepository {
         _client
             .from('profiles')
             .select(
-              'user_id, username, display_name, bio, avatar_url, is_suspended, is_verified',
+              'user_id, username, display_name, bio, avatar_url, is_suspended, is_verified, moderation_reason',
             )
             .eq('is_suspended', false)
             .ilike(field, '%$search%')
@@ -742,6 +742,7 @@ class CreatorProfile {
   final String? avatarUrl;
   final bool isSuspended;
   final bool isVerified;
+  final String? moderationReason;
 
   const CreatorProfile({
     required this.userId,
@@ -751,6 +752,7 @@ class CreatorProfile {
     this.avatarUrl,
     required this.isSuspended,
     required this.isVerified,
+    this.moderationReason,
   });
 
   String get visibleName {
@@ -778,6 +780,7 @@ class CreatorProfile {
       avatarUrl: row['avatar_url'] as String?,
       isSuspended: row['is_suspended'] as bool? ?? false,
       isVerified: row['is_verified'] as bool? ?? false,
+      moderationReason: row['moderation_reason'] as String?,
     );
   }
 }

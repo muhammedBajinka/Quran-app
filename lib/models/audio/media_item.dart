@@ -21,6 +21,8 @@ class MediaItem {
   final String commentPermission;
   final String visibility;
   final bool published;
+  final bool moderationBlocked;
+  final String? moderationReason;
 
   const MediaItem({
     required this.id,
@@ -40,6 +42,8 @@ class MediaItem {
     this.commentPermission = 'everyone',
     this.visibility = 'public',
     this.published = true,
+    this.moderationBlocked = false,
+    this.moderationReason,
   });
 
   bool get hasAudio => audioUrl != null && audioUrl!.trim().isNotEmpty;
@@ -68,6 +72,8 @@ class MediaItem {
       commentPermission: commentPermission,
       visibility: visibility,
       published: published,
+      moderationBlocked: moderationBlocked,
+      moderationReason: moderationReason,
     );
   }
 }

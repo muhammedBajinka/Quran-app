@@ -436,6 +436,13 @@ class _FeedbackPageState extends State<_FeedbackPage> {
 
   String _category = 'General';
   bool _sending = false;
+  late Future<List<Map<String, dynamic>>> _history;
+
+  @override
+  void initState() {
+    super.initState();
+    _history = _feedbackService.history();
+  }
 
   @override
   void dispose() {
@@ -469,6 +476,7 @@ class _FeedbackPageState extends State<_FeedbackPage> {
       }
 
       _controller.clear();
+      setState(() { _history = _feedbackService.history(); });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Thank you. Your feedback was sent.')),
@@ -570,9 +578,48 @@ class _FeedbackPageState extends State<_FeedbackPage> {
             label: Text(_sending ? 'Sending...' : 'Send feedback'),
           ),
           const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () => setState(() { _history = _feedbackService.history(); }),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh messages and replies'),
+          ),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _history,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return const Text('Messages could not load. Tap refresh to retry.');
+              }
+              final messages = snapshot.data ?? [];
+              if (messages.isEmpty) return const Text('No messages for this session yet.');
+              return Column(
+                children: messages.map((message) => Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${message['category']} · ${message['status']}'),
+                        Text(message['message'] as String? ?? ''),
+                        if (message['admin_reply'] != null) ...[
+                          const Divider(),
+                          const Text('Admin reply', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(message['admin_reply'] as String),
+                        ],
+                      ],
+                    ),
+                  ),
+                )).toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 12),
           const Text(
             'Feedback includes an anonymous installation identifier and '
             'the installed app version so problems can be investigated. '
+            'Messages are linked to your app session so you can receive admin replies. '
             'Do not include private or sensitive information in your message.',
             style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
           ),

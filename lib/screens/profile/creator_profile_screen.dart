@@ -306,7 +306,7 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
 
     final profile = _profile;
 
-    if (profile == null || profile.isSuspended) {
+    if (profile == null || (profile.isSuspended && !_isOwnProfile)) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: const [
@@ -337,6 +337,13 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
       length: tabs.length,
       child: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          if (_isOwnProfile && profile.isSuspended)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Your creator account is suspended. Uploading and publishing are disabled. You can still manage and delete your posts.\n${profile.moderationReason ?? "Contact admin through Settings → Feedback for help."}'),
+              ),
+            ),
           SliverToBoxAdapter(
             child: _ProfileHeader(
               profile: profile,
@@ -888,6 +895,19 @@ class _ProfileMediaTile extends StatelessWidget {
                 )
               else
                 _fallback(),
+              if (item.moderationBlocked)
+                const Positioned(
+                  top: 4,
+                  left: 4,
+                  right: 4,
+                  child: ColoredBox(
+                    color: Colors.black87,
+                    child: Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Text('Blocked by admin', style: TextStyle(color: Colors.white)),
+                    ),
+                  ),
+                ),
               Positioned(
                 left: 7,
                 bottom: 7,

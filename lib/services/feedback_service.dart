@@ -35,6 +35,16 @@ class FeedbackService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> history() async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return [];
+    final rows = await _supabase.from('feedback')
+        .select('id,category,message,status,admin_reply,replied_at,created_at')
+        .eq('auth_user_id', user.id)
+        .order('created_at', ascending: false).limit(30);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
   Future<void> submit({
     required String category,
     required String message,

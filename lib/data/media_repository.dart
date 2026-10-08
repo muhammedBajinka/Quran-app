@@ -30,6 +30,8 @@ class MediaRepository {
     comment_permission,
     visibility,
     published,
+    moderation_blocked,
+    moderation_reason,
     created_at
   ''';
 
@@ -316,6 +318,8 @@ class MediaRepository {
       commentPermission: row['comment_permission'] as String? ?? 'everyone',
       visibility: row['visibility'] as String? ?? 'public',
       published: row['published'] as bool? ?? true,
+      moderationBlocked: row['moderation_blocked'] as bool? ?? false,
+      moderationReason: row['moderation_reason'] as String?,
     );
   }
 
