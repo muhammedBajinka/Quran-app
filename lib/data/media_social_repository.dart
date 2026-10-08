@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/anonymous_install_service.dart';
+import '../models/media/media_report_reason.dart';
 
 /// Handles social actions for Media posts.
 ///
@@ -541,10 +542,11 @@ class MediaSocialRepository {
     required String reason,
     String? details,
   }) async {
+    final reportReason = MediaReportReason.parse(reason);
     final userId = currentUserId;
 
     if (userId == null) {
-      return;
+      throw StateError('A browsing session is required to report a post. Refresh Media and retry.');
     }
 
     final profileUserId = await _currentProfileUserId();
@@ -554,7 +556,7 @@ class MediaSocialRepository {
       'anonymous_install_id': await _installService.getInstallId(),
       'user_id': profileUserId,
       'auth_user_id': userId,
-      'reason': reason,
+      'reason': reportReason.code,
       'details': details?.trim().isEmpty == true ? null : details?.trim(),
       'status': 'pending',
     });

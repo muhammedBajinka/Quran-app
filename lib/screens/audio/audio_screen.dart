@@ -11,14 +11,16 @@ import '../profile/upload_media_screen.dart';
 
 import '../../data/media_repository.dart';
 import '../../widgets/media_search_results.dart';
+import '../../widgets/media_creator_identity.dart';
+import '../../widgets/media_swipe_surface.dart';
+import '../../models/media/media_report_reason.dart';
+import '../../models/media/media_feed_navigation.dart';
 import '../../services/media_worker_service.dart';
 import '../../services/media_links.dart';
 import '../../widgets/media_download_dialog.dart';
 import '../../data/media_social_repository.dart';
 import '../../models/audio/media_item.dart';
 import '../../state/audio/media_audio_controller.dart';
-
-enum _MediaFeedTab { other, sermon, dua, recitation, following, forYou }
 
 class AudioScreen extends StatefulWidget {
   final MediaAudioController audioController;
@@ -35,11 +37,12 @@ class _AudioScreenState extends State<AudioScreen> {
   final MediaRepository _repository = MediaRepository();
   final MediaSocialRepository _socialRepository = MediaSocialRepository();
 
-  _MediaFeedTab _selectedTab = _MediaFeedTab.forYou;
+  MediaFeedTab _selectedTab = MediaFeedTab.forYou;
 
   bool _searchMode = false;
   final TextEditingController _searchController = TextEditingController();
   late Future<List<MediaItem>> _items;
+  int _feedRevision = 0;
   Future<List<MediaItem>>? _searchResults;
   Future<List<CreatorProfile>>? _creatorSearchResults;
   Timer? _searchDebounce;
@@ -51,7 +54,9 @@ class _AudioScreenState extends State<AudioScreen> {
   }
 
   void _load() {
-    _items = widget.sharedMediaId != null && _selectedTab == _MediaFeedTab.forYou
+    _feedRevision++;
+    _currentVisibleItem = null;
+    _items = widget.sharedMediaId != null && _selectedTab == MediaFeedTab.forYou
         ? _repository.getSharedFeed(widget.sharedMediaId!)
         : _loadSelectedFeed();
   }
@@ -100,19 +105,19 @@ class _AudioScreenState extends State<AudioScreen> {
 
   Future<List<MediaItem>> _loadSelectedFeed() async {
     switch (_selectedTab) {
-      case _MediaFeedTab.other:
+      case MediaFeedTab.other:
         return _repository.getCategoryFeed(MediaItemType.other);
 
-      case _MediaFeedTab.sermon:
+      case MediaFeedTab.sermon:
         return _repository.getCategoryFeed(MediaItemType.sermon);
 
-      case _MediaFeedTab.dua:
+      case MediaFeedTab.dua:
         return _repository.getCategoryFeed(MediaItemType.dua);
 
-      case _MediaFeedTab.recitation:
+      case MediaFeedTab.recitation:
         return _repository.getCategoryFeed(MediaItemType.recitation);
 
-      case _MediaFeedTab.following:
+      case MediaFeedTab.following:
         final creatorIds = await _socialRepository.getFollowingCreatorIds();
 
         if (creatorIds.isEmpty) {
@@ -128,7 +133,7 @@ class _AudioScreenState extends State<AudioScreen> {
             )
             .toList();
 
-      case _MediaFeedTab.forYou:
+      case MediaFeedTab.forYou:
         return _repository.getForYouFeed();
     }
   }
@@ -138,7 +143,7 @@ class _AudioScreenState extends State<AudioScreen> {
     await _items;
   }
 
-  void _selectTab(_MediaFeedTab tab) {
+  void _selectTab(MediaFeedTab tab) {
     if (_selectedTab == tab) {
       return;
     }
@@ -160,33 +165,18 @@ class _AudioScreenState extends State<AudioScreen> {
     super.dispose();
   }
 
-  static const _tabOrder = <_MediaFeedTab>[
-    _MediaFeedTab.other,
-    _MediaFeedTab.sermon,
-    _MediaFeedTab.dua,
-    _MediaFeedTab.recitation,
-    _MediaFeedTab.following,
-    _MediaFeedTab.forYou,
-  ];
-
   void _swipeLeft() {
-    final index = _tabOrder.indexOf(_selectedTab);
-
-    // The tabs are rendered Other ... For You from left to right.
-    // A left swipe therefore moves one tab left repeatedly. Only after the
-    // left-most tab does another left swipe transition to the creator.
-    if (index > 0) {
-      _selectTab(_tabOrder[index - 1]);
+    final next = _selectedTab.next;
+    if (next != null) {
+      _selectTab(next);
     } else {
       _openCurrentCreatorProfile();
     }
   }
 
   void _swipeRight() {
-    final index = _tabOrder.indexOf(_selectedTab);
-    if (index >= 0 && index < _tabOrder.length - 1) {
-      _selectTab(_tabOrder[index + 1]);
-    }
+    final previous = _selectedTab.previous;
+    if (previous != null) _selectTab(previous);
   }
 
   void _currentItemChanged(MediaItem item) {
@@ -208,12 +198,30 @@ class _AudioScreenState extends State<AudioScreen> {
     _openCreatorProfile(creatorId);
   }
 
+  bool _openingCreator = false;
+
   Future<void> _openCreatorProfile(String creatorId) async {
-    await Navigator.of(context).push(
+    if (_openingCreator) return;
+    setState(() => _openingCreator = true);
+    try {
+      await widget.audioController.pause();
+      if (!mounted) return;
+      await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CreatorProfileScreen(creatorId: creatorId),
       ),
     );
+    } finally {
+      if (mounted) setState(() => _openingCreator = false);
+      final item = _currentVisibleItem;
+      if (mounted && item?.hasAudio == true) {
+        try {
+          await widget.audioController.playItem(item!);
+        } catch (error) {
+          unawaited(ErrorReportService.report('MEDIA_RESUME_FAILED', error: error));
+        }
+      }
+    }
   }
 
   @override
@@ -237,7 +245,10 @@ class _AudioScreenState extends State<AudioScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          FutureBuilder<List<MediaItem>>(
+          MediaSwipeSurface(
+            onSwipeLeft: _swipeLeft,
+            onSwipeRight: _swipeRight,
+            child: FutureBuilder<List<MediaItem>>(
             future: _items,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -260,9 +271,9 @@ class _AudioScreenState extends State<AudioScreen> {
               final items = snapshot.data ?? const <MediaItem>[];
 
               if (items.isEmpty) {
-                final message = widget.sharedMediaId != null && _selectedTab == _MediaFeedTab.forYou
+                final message = widget.sharedMediaId != null && _selectedTab == MediaFeedTab.forYou
                     ? 'This shared post is unavailable or you do not have access.'
-                    : _selectedTab == _MediaFeedTab.following
+                    : _selectedTab == MediaFeedTab.following
                     ? 'Follow creators to see their posts here.'
                     : 'No Media has been published here yet.';
 
@@ -275,16 +286,16 @@ class _AudioScreenState extends State<AudioScreen> {
               }
 
               return _UnifiedMediaFeed(
-                key: ValueKey(_selectedTab),
+                key: ValueKey('${_selectedTab.name}:$_feedRevision'),
+                paused: _openingCreator,
                 items: items,
                 audioController: widget.audioController,
                 socialRepository: _socialRepository,
-                onSwipeLeft: _swipeLeft,
-                onSwipeRight: _swipeRight,
                 onCurrentItemChanged: _currentItemChanged,
                 onCreatorPressed: _openCreatorProfile,
               );
             },
+            ),
           ),
 
           _TopNavigation(
@@ -292,6 +303,7 @@ class _AudioScreenState extends State<AudioScreen> {
             onSelected: _selectTab,
             onSearch: _openSearch,
             onRefresh: _refresh,
+            onCreator: _openCurrentCreatorProfile,
           ),
         ],
       ),
@@ -461,15 +473,17 @@ class _MediaSearchView extends StatelessWidget {
 }
 
 class _TopNavigation extends StatelessWidget {
-  final _MediaFeedTab selectedTab;
-  final ValueChanged<_MediaFeedTab> onSelected;
+  final MediaFeedTab selectedTab;
+  final ValueChanged<MediaFeedTab> onSelected;
   final VoidCallback onSearch;
+  final VoidCallback onCreator;
   final Future<void> Function() onRefresh;
 
   const _TopNavigation({
     required this.selectedTab,
     required this.onSelected,
     required this.onSearch,
+    required this.onCreator,
     required this.onRefresh,
   });
 
@@ -491,12 +505,16 @@ class _TopNavigation extends StatelessWidget {
                   padding: const EdgeInsets.only(left: 8),
                   child: Row(
                     children: [
-                      _tab('Other', _MediaFeedTab.other),
-                      _tab('Sermon', _MediaFeedTab.sermon),
-                      _tab('Dua', _MediaFeedTab.dua),
-                      _tab('Recitation', _MediaFeedTab.recitation),
-                      _tab('Following', _MediaFeedTab.following),
-                      _tab('For You', _MediaFeedTab.forYou),
+                      _tab('Other', MediaFeedTab.other),
+                      _tab('Sermon', MediaFeedTab.sermon),
+                      _tab('Dua', MediaFeedTab.dua),
+                      _tab('Recitation', MediaFeedTab.recitation),
+                      _tab('Following', MediaFeedTab.following),
+                      _tab('For You', MediaFeedTab.forYou),
+                      TextButton(
+                        onPressed: onCreator,
+                        child: const Text('Creator', style: TextStyle(color: Colors.white70)),
+                      ),
                     ],
                   ),
                 ),
@@ -520,7 +538,7 @@ class _TopNavigation extends StatelessWidget {
     );
   }
 
-  Widget _tab(String label, _MediaFeedTab tab) {
+  Widget _tab(String label, MediaFeedTab tab) {
     final selected = selectedTab == tab;
 
     return TextButton(
@@ -593,8 +611,6 @@ class _CreatorMediaFeedScreenState extends State<CreatorMediaFeedScreen> {
           allowManagement: widget.allowManagement,
           audioController: _audio,
           socialRepository: _social,
-          onSwipeLeft: () {},
-          onSwipeRight: () {},
           onCurrentItemChanged: (_) {},
           onCreatorPressed: (id) async {
             await Navigator.of(context).push(
@@ -623,10 +639,9 @@ class _UnifiedMediaFeed extends StatefulWidget {
   final List<MediaItem> items;
   final int initialIndex;
   final bool allowManagement;
+  final bool paused;
   final MediaAudioController audioController;
   final MediaSocialRepository socialRepository;
-  final VoidCallback onSwipeLeft;
-  final VoidCallback onSwipeRight;
   final ValueChanged<MediaItem> onCurrentItemChanged;
   final Future<void> Function(String) onCreatorPressed;
 
@@ -635,10 +650,9 @@ class _UnifiedMediaFeed extends StatefulWidget {
     required this.items,
     this.initialIndex = 0,
     this.allowManagement = false,
+    this.paused = false,
     required this.audioController,
     required this.socialRepository,
-    required this.onSwipeLeft,
-    required this.onSwipeRight,
     required this.onCurrentItemChanged,
     required this.onCreatorPressed,
   });
@@ -655,8 +669,6 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   bool _autoScroll = false;
   bool _advancing = false;
   StreamSubscription<PlayerState>? _audioSubscription;
-  Offset? _pointerStart;
-  bool _horizontalSwipeHandled = false;
 
   @override
   void initState() {
@@ -734,6 +746,7 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
   void _completed(String id) {
     if (!mounted ||
         !_autoScroll ||
+        widget.paused ||
         _advancing ||
         _items.isEmpty ||
         _items[_currentIndex].id != id ||
@@ -777,33 +790,6 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
     super.dispose();
   }
 
-  void _pointerDown(PointerDownEvent event) {
-    _pointerStart = event.position;
-    _horizontalSwipeHandled = false;
-  }
-
-  void _pointerMove(PointerMoveEvent event) {
-    final start = _pointerStart;
-    if (start == null || _horizontalSwipeHandled) return;
-
-    final delta = event.position - start;
-    if (delta.dx.abs() < 56 || delta.dx.abs() <= delta.dy.abs() * 1.25) {
-      return;
-    }
-
-    _horizontalSwipeHandled = true;
-    if (delta.dx < 0) {
-      widget.onSwipeLeft();
-    } else {
-      widget.onSwipeRight();
-    }
-  }
-
-  void _pointerEnd(PointerEvent event) {
-    _pointerStart = null;
-    _horizontalSwipeHandled = false;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_items.isEmpty) {
@@ -814,13 +800,7 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
         ),
       );
     }
-    return Listener(
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: _pointerDown,
-      onPointerMove: _pointerMove,
-      onPointerUp: _pointerEnd,
-      onPointerCancel: _pointerEnd,
-      child: PageView.builder(
+    return PageView.builder(
         controller: _pageController,
         scrollDirection: Axis.vertical,
         itemCount: _items.length,
@@ -831,7 +811,7 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
           return _MediaFeedPage(
             key: ValueKey(item.id),
             item: item,
-            active: index == _currentIndex,
+            active: index == _currentIndex && !widget.paused,
             allowManagement: widget.allowManagement,
             audioController: widget.audioController,
             socialRepository: widget.socialRepository,
@@ -842,7 +822,6 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
             onDeleted: () => _deleted(item.id),
           );
         },
-      ),
     );
   }
 }
@@ -881,6 +860,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   VideoPlayerController? _videoController;
 
   CreatorProfile? _creator;
+  bool _reportSending = false;
 
   bool _videoInitialized = false;
   bool _showPlayButton = false;
@@ -940,6 +920,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
 
       if (creatorId != null) {
         creator = await widget.socialRepository.getCreatorProfile(creatorId);
+        if (mounted) setState(() => _creator = creator);
 
         following = await widget.socialRepository.isFollowing(creatorId);
       }
@@ -1400,13 +1381,8 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
   }
 
   Future<void> _showReportSheet() async {
-    const reasons = <String>[
-      'Inappropriate content',
-      'Spam',
-      'Misleading content',
-      'Copyright concern',
-      'Other',
-    ];
+    if (_reportSending) return;
+    const reasons = MediaReportReason.values;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -1429,37 +1405,46 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
               ...reasons.map(
                 (reason) => ListTile(
                   title: Text(
-                    reason,
+                    reason.label,
                     style: const TextStyle(color: Colors.white),
                   ),
                   onTap: () async {
+                    if (_reportSending) return;
                     Navigator.pop(sheetContext);
-
+                    setState(() => _reportSending = true);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sending report…')),
+                    );
                     try {
                       await widget.socialRepository.reportMedia(
                         mediaId: widget.item.id,
-                        reason: reason,
+                        reason: reason.code,
                       );
 
                       if (!mounted) {
                         return;
                       }
 
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Report sent for admin review.'),
                         ),
                       );
-                    } catch (_) {
+                    } catch (error) {
+                      unawaited(ErrorReportService.report('REPORT_FAILED', error: error));
                       if (!mounted) {
                         return;
                       }
 
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Could not send the report.'),
+                          content: Text('Could not send the report. Check your connection, refresh Media and retry.'),
                         ),
                       );
+                    } finally {
+                      if (mounted) setState(() => _reportSending = false);
                     }
                   },
                 ),
@@ -1912,25 +1897,12 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: widget.item.creatorId == null
+        MediaCreatorIdentity(
+          creator: _creator,
+          fallbackName: creatorName,
+          onPressed: widget.item.creatorId == null
               ? null
               : () => _openCreator(widget.item.creatorId!),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              '@$creatorName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                shadows: [Shadow(blurRadius: 5, color: Colors.black)],
-              ),
-            ),
-          ),
         ),
         const SizedBox(height: 5),
         Text(
