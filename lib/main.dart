@@ -123,9 +123,13 @@ class _QuranHomePageState extends State<QuranHomePage> {
   void _openMediaLink(Uri uri) {
     if (!mounted || uri.scheme != 'https' ||
         uri.host != 'muhammedbajinka.github.io' ||
-        uri.path != '/Quran-app/') return;
+        uri.path != '/Quran-app/') {
+      return;
+    }
     final id = MediaLinks.postId(uri);
-    if (id == null) return;
+    if (id == null) {
+      return;
+    }
     _mediaAudioController.pause();
     setState(() { _sharedMediaId = id; _selectedIndex = 3; });
   }

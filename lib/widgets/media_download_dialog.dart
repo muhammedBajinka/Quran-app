@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/audio/media_item.dart';
 import '../services/media_download.dart';
@@ -31,15 +32,33 @@ class _MediaDownloadDialogState extends State<MediaDownloadDialog> {
 
   Future<void> _start() async {
     try {
+      final supabase = Supabase.instance.client;
+      final token = supabase.auth.currentSession?.accessToken;
+      if (token == null) {
+        throw StateError('Please refresh your session.');
+      }
+      final endpoint = Uri.parse(
+        '${const String.fromEnvironment('SUPABASE_URL')}/functions/v1/download-media',
+      ).replace(queryParameters: {'media': widget.item.id});
       final data = await _download.fetch(
-        Uri.parse(widget.item.videoUrl ?? widget.item.audioUrl!),
+        endpoint,
         (received, total) {
-          if (mounted) setState(() { _received = received; _total = total; });
+          if (mounted) {
+            setState(() { _received = received; _total = total; });
+          }
+        },
+        headers: {
+          'Authorization': 'Bearer $token',
+          'apikey': const String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY'),
         },
       );
-      if (mounted) setState(() => _bytes = data);
+      if (mounted) {
+        setState(() => _bytes = data);
+      }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Download failed. Close and try again.');
+      if (mounted) {
+        setState(() => _error = 'Download failed. Close and try again.');
+      }
     }
   }
 
@@ -68,10 +87,12 @@ class _MediaDownloadDialogState extends State<MediaDownloadDialog> {
         content: Text(kIsWeb ? 'Download sent to your browser.' : 'Media file saved.'),
       ));
     } catch (_) {
-      if (mounted) setState(() {
-        _saving = false;
-        _error = 'Could not save the file. Please try Save again.';
-      });
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = 'Could not save the file. Please try Save again.';
+        });
+      }
     }
   }
 

@@ -14,9 +14,11 @@ class MediaDownload {
     client.close();
   }
 
-  Future<Uint8List> fetch(Uri uri, void Function(int, int?) onProgress) async {
+  Future<Uint8List> fetch(Uri uri, void Function(int, int?) onProgress,
+      {Map<String, String> headers = const {}}) async {
     try {
-      final response = await client.send(http.Request('GET', uri))
+      final request = http.Request('GET', uri)..headers.addAll(headers);
+      final response = await client.send(request)
           .timeout(const Duration(seconds: 30));
       if (response.statusCode != 200) {
         throw StateError('The media file could not be downloaded.');
