@@ -1052,7 +1052,9 @@ class _MediaFeedPageState extends State<_MediaFeedPage>
   Future<void> _playVideoIfReady() async {
     final controller = _videoController;
     if (controller == null || !_videoInitialized ||
-        !mounted || !widget.active || !_appForeground) return;
+        !mounted || !widget.active || !_appForeground) {
+      return;
+    }
     try {
       if (controller.value.isCompleted) await controller.seekTo(Duration.zero);
       if (mounted && widget.active && _appForeground) await controller.play();
