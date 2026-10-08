@@ -23,6 +23,6 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze
       - name: Test deletion errors and search results
-        run: flutter test test/media_deletion_error_test.dart test/media_search_results_test.dart
+        run: flutter test test/media_deletion_error_test.dart test/media_search_results_test.dart test/account_deletion_screen_test.dart
       - name: Compile web app
         run: flutter build web --release
