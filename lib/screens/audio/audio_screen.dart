@@ -687,8 +687,9 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
         _items.isEmpty ||
         _items[_currentIndex].id != id ||
         _currentIndex + 1 >= _items.length ||
-        !_pageController.hasClients)
+        !_pageController.hasClients) {
       return;
+    }
     _advancing = true;
     _pageController
         .animateToPage(
@@ -754,13 +755,14 @@ class _UnifiedMediaFeedState extends State<_UnifiedMediaFeed> {
 
   @override
   Widget build(BuildContext context) {
-    if (_items.isEmpty)
+    if (_items.isEmpty) {
       return const Center(
         child: Text(
           'No posts remaining.',
           style: TextStyle(color: Colors.white),
         ),
       );
+    }
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: _pointerDown,
@@ -941,14 +943,13 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       }
 
       await controller.setPlaybackSpeed(_speed);
+      if (!mounted) return;
 
       setState(() {
         _videoInitialized = true;
       });
 
-      if (widget.active) {
-        if (mounted && widget.active) await controller.play();
-      }
+      if (widget.active) await controller.play();
     } catch (_) {
       if (!mounted) {
         return;
@@ -1244,7 +1245,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
       await MediaRepository().deleteOwnMedia(widget.item);
       if (mounted) widget.onDeleted();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -1252,6 +1253,7 @@ class _MediaFeedPageState extends State<_MediaFeedPage> {
             ),
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _deleteBusy = false);
     }

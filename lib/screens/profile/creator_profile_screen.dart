@@ -217,8 +217,9 @@ class _CreatorProfileScreenState extends State<CreatorProfileScreen> {
   }
 
   Future<void> _openMedia(List<MediaItem> items, int initialIndex) async {
-    if (items.isEmpty || initialIndex < 0 || initialIndex >= items.length)
+    if (items.isEmpty || initialIndex < 0 || initialIndex >= items.length) {
       return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>
