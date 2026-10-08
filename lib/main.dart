@@ -112,7 +112,9 @@ class _QuranHomePageState extends State<QuranHomePage> {
   Future<void> _loadInitialLink(AppLinks links) async {
     try {
       final link = await links.getInitialLink();
-      if (link != null) _openMediaLink(link);
+      if (link != null) {
+        _openMediaLink(link);
+      }
     } catch (error) {
       debugPrint('Could not load app link: $error');
     }

@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:quran_app/data/media_repository.dart';
 import 'package:quran_app/services/media_links.dart';
 import 'package:quran_app/services/media_download.dart';
 import 'package:quran_app/data/media_social_repository.dart';
@@ -14,6 +17,35 @@ void main() {
     expect(MediaLinks.postId(link), id);
     expect(MediaLinks.postId(Uri.parse('https://example.com/?media=bad')), isNull);
     expect(MediaLinks.postId(Uri.parse('https://example.com/')), isNull);
+  });
+  test('Shared feed starts at the requested post and retains the normal feed', () async {
+    final other = '87654321-1234-1234-1234-123456789abc';
+    final client = MockClient((request) async {
+      final isTarget = request.url.queryParameters['id'] != null;
+      expect(request.url.queryParameters['published'], 'eq.true');
+      if (isTarget) expect(request.url.queryParameters['visibility'], 'neq.private');
+      final ids = isTarget ? [id] : [other, id];
+      return http.Response(jsonEncode(ids.map((value) => {
+        'id': value, 'title': 'Post', 'content_type': 'other', 'media_type': 'video',
+        'media_url': 'https://example.com/file.mp4', 'published': true,
+        'visibility': 'public', 'downloads_enabled': true, 'comment_permission': 'everyone',
+      }).toList()), 200, headers: {'content-type': 'application/json'});
+    });
+    final supabase = SupabaseClient('https://example.supabase.co', 'test', httpClient: client);
+    final feed = await MediaRepository(client: supabase).getSharedFeed(id);
+    expect(feed.map((item) => item.id), [id, other]);
+    await supabase.dispose();
+  });
+  test('Inaccessible shared posts do not silently open an unrelated video', () async {
+    var requests = 0;
+    final client = MockClient((request) async {
+      requests++;
+      return http.Response('[]', 200, headers: {'content-type': 'application/json'});
+    });
+    final supabase = SupabaseClient('https://example.supabase.co', 'test', httpClient: client);
+    expect(await MediaRepository(client: supabase).getSharedFeed(id), isEmpty);
+    expect(requests, 1);
+    await supabase.dispose();
   });
   test('Missing creator settings enable downloads and comments', () {
     expect(const CreatorPrivacySettings().allowDownloads, isTrue);

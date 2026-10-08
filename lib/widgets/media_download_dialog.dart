@@ -56,7 +56,9 @@ class _MediaDownloadDialogState extends State<MediaDownloadDialog> {
         bytes: _bytes!,
         dialogTitle: 'Save media',
       );
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       if (saved == null) {
         setState(() => _saving = false);
         return;
